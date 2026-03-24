@@ -1660,6 +1660,186 @@ body {
   margin-top: 12px;
 }
 
+/* Form Actions */
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* Progress Chart */
+.progress-chart {
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.chart-bars {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  height: 120px;
+  gap: 4px;
+  padding-bottom: 8px;
+}
+
+.chart-bar-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 40px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.chart-label {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* History Day */
+.history-day {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.history-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.history-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-task {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.history-task.completed .task-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-checkbox {
+  font-size: 12px;
+}
+
+.task-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.empty-state-small {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px;
+}
+
+/* Books List */
+.books-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.book-item {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.book-item.current {
+  border-color: var(--accent);
+}
+
+.book-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.book-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.book-pages {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.book-progress-bar {
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.book-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.book-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* Profile Edit Form */
+.profile-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.profile-name-display {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 /* Responsive */
 @media (min-width: 768px) {
   .content {

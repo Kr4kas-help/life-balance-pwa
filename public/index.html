@@ -99,27 +99,38 @@
                   <span class="stat-label">Успешность</span>
                 </div>
               </div>
+              
+              <!-- График прогресса -->
+              <div class="progress-chart" id="progress-chart">
+                <div class="chart-bars" id="chart-bars"></div>
+                <div class="chart-labels" id="chart-labels"></div>
+              </div>
+              
               <div class="history-list" id="history-list">
                 <p class="empty-state">История пуста</p>
               </div>
             </div>
           </div>
 
-          <!-- Чтение -->
+          <!-- Книги -->
           <div class="task-card">
             <div class="task-header">
-              <span class="task-icon">📖</span>
-              <h3>10 страниц книги</h3>
+              <span class="task-icon">📚</span>
+              <h3>Книги</h3>
             </div>
             <div class="task-body">
-              <input type="text" id="book-title" class="input-field" placeholder="Название книги">
-              <div class="counter-section">
-                <div class="counter-display">
-                  <span id="pages-today">0</span>
-                  <span class="counter-label">страниц сегодня</span>
+              <button class="btn btn-secondary btn-full" id="add-book-btn">+ Добавить книгу</button>
+              
+              <div class="book-form" id="book-form" style="display: none;">
+                <input type="text" id="book-title-input" class="input-field" placeholder="Название книги">
+                <input type="number" id="book-total-pages" class="input-field" placeholder="Всего страниц">
+                <div class="form-actions">
+                  <button class="btn btn-primary" id="save-book-btn">Сохранить</button>
+                  <button class="btn btn-outline" id="cancel-book-btn">Отмена</button>
                 </div>
-                <button class="btn btn-primary" id="add-10-pages">+10 стр.</button>
               </div>
+              
+              <div class="books-list" id="books-list"></div>
             </div>
           </div>
 
@@ -297,10 +308,21 @@
           <h2>📅 Календарь жизни</h2>
 
           <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🎂</span>
+              <h3>Дата рождения</h3>
+            </div>
+            <div class="task-body">
+              <input type="date" id="birth-date-input" class="input-field">
+              <button class="btn btn-primary btn-full" id="save-birth-date">Применить</button>
+            </div>
+          </div>
+
+          <div class="task-card">
             <div class="task-body">
               <div class="life-calendar">
                 <div class="life-stats">
-                  <span id="weeks-lived">0</span> / 4000 недель
+                  <span id="weeks-lived">0</span> / <span id="total-weeks">4000</span> недель
                   <span id="life-percent">0%</span> жизни
                 </div>
                 <div class="life-grid" id="life-grid"></div>
@@ -310,7 +332,7 @@
 
           <div class="task-card">
             <div class="task-header">
-              <span class="task-icon">🎂</span>
+              <span class="task-icon">📊</span>
               <h3>Информация</h3>
             </div>
             <div class="task-body">
@@ -326,6 +348,10 @@
                 <div class="info-item">
                   <span class="info-label">Осталось недель:</span>
                   <span class="info-value" id="weeks-left">0</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Дата рождения:</span>
+                  <span class="info-value" id="birth-date-display">Не указана</span>
                 </div>
               </div>
             </div>
@@ -343,10 +369,23 @@
             <div class="profile-header">
               <div class="profile-avatar" id="profile-avatar">👤</div>
               <div class="profile-info">
-                <input type="text" id="profile-name" class="profile-name-input" placeholder="Ваше имя">
+                <span class="profile-name-display" id="profile-name-display">Гость</span>
                 <span class="profile-email" id="profile-email">user@example.com</span>
               </div>
+              <button class="icon-btn" id="edit-profile-btn">✏️</button>
             </div>
+            
+            <!-- Форма редактирования -->
+            <div class="profile-edit-form" id="profile-edit-form" style="display: none;">
+              <input type="text" id="profile-fullname" class="input-field" placeholder="ФИО">
+              <input type="date" id="profile-birthdate" class="input-field">
+              <input type="email" id="profile-email-input" class="input-field" placeholder="Email">
+              <div class="form-actions">
+                <button class="btn btn-primary" id="save-profile-btn">Сохранить</button>
+                <button class="btn btn-outline" id="cancel-profile-btn">Отмена</button>
+              </div>
+            </div>
+            
             <div class="profile-stats">
               <div class="profile-stat">
                 <span class="profile-stat-value" id="total-tasks">0</span>
@@ -361,7 +400,6 @@
                 <span class="profile-stat-label">Минут фокуса</span>
               </div>
             </div>
-            <button class="btn btn-primary btn-full" id="save-profile-btn">Сохранить профиль</button>
           </div>
 
           <!-- Благодарность -->

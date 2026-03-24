@@ -76,7 +76,13 @@ const appState = {
   exerciseIsRunning: false,
   sessionsToday: 0,
   wordsToday: [],
-  uploadedFile: null
+  uploadedFile: null,
+  currentBook: null,
+  userProfile: {
+    fullName: '',
+    birthDate: null,
+    email: 'user@example.com'
+  }
 };
 
 // Инициализация приложения
@@ -90,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSupplements();
   loadWords();
   loadAchievements();
+  loadBooks();
   initLifeCalendar();
   notifications.scheduleWaterReminder();
 });
@@ -109,17 +116,14 @@ function initNavigation() {
 function switchTab(tabName) {
   appState.currentTab = tabName;
   
-  // Обновляем навигацию
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.tab === tabName);
   });
   
-  // Обновляем контент
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.toggle('active', content.dataset.tab === tabName);
   });
   
-  // Перерисовываем календарь при переключении
   if (tabName === 'calendar') {
     initLifeCalendar();
   }
@@ -128,10 +132,8 @@ function switchTab(tabName) {
 // Инициализация обработчиков
 function initEventListeners() {
   // === ЗАДАЧИ ===
-  // Сохранение задач
   document.getElementById('save-tasks-btn')?.addEventListener('click', saveTasks);
   
-  // Чекбоксы задач
   document.querySelectorAll('.daily-task-check').forEach(checkbox => {
     checkbox.addEventListener('change', (e) => {
       const taskId = e.target.dataset.task;
@@ -144,11 +146,19 @@ function initEventListeners() {
       };
       db.put('daily_tasks', taskData);
       updateHistory();
+      updateProgressChart();
     });
   });
   
-  // Книга
-  document.getElementById('add-10-pages')?.addEventListener('click', addPages);
+  // Книги
+  document.getElementById('add-book-btn')?.addEventListener('click', () => {
+    document.getElementById('book-form').style.display = 'block';
+  });
+  
+  document.getElementById('save-book-btn')?.addEventListener('click', saveBook);
+  document.getElementById('cancel-book-btn')?.addEventListener('click', () => {
+    document.getElementById('book-form').style.display = 'none';
+  });
   
   // Разминка
   document.getElementById('start-exercise')?.addEventListener('click', toggleExerciseTimer);
@@ -158,7 +168,6 @@ function initEventListeners() {
   document.getElementById('add-water')?.addEventListener('click', addWater);
   
   // === ФОКУС ===
-  // Быстрые таймеры
   document.querySelectorAll('.quick-timer-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const minutes = parseInt(btn.dataset.minutes);
@@ -166,53 +175,56 @@ function initEventListeners() {
     });
   });
   
-  // Таймер фокуса
   document.getElementById('start-focus')?.addEventListener('click', toggleFocusTimer);
   document.getElementById('pause-focus')?.addEventListener('click', pauseFocusTimer);
   document.getElementById('reset-focus')?.addEventListener('click', resetFocusTimer);
   
-  // DND
   document.getElementById('dnd-switch')?.addEventListener('change', toggleDND);
   
   // === ИЗУЧАТЬ ===
-  // Загрузка файла
   document.getElementById('upload-file-btn')?.addEventListener('click', uploadFile);
-  
-  // Изучение слов
   document.getElementById('learn-words-btn')?.addEventListener('click', learnWords);
   
+  // === КАЛЕНДАРЬ ===
+  document.getElementById('save-birth-date')?.addEventListener('click', saveBirthDate);
+  
   // === ПРОФИЛЬ ===
-  // Сохранение профиля
+  document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
+    document.getElementById('profile-edit-form').style.display = 'block';
+    document.getElementById('profile-fullname').value = appState.userProfile.fullName;
+    document.getElementById('profile-birthdate').value = appState.userProfile.birthDate || '';
+    document.getElementById('profile-email-input').value = appState.userProfile.email;
+  });
+  
   document.getElementById('save-profile-btn')?.addEventListener('click', saveProfile);
+  document.getElementById('cancel-profile-btn')?.addEventListener('click', () => {
+    document.getElementById('profile-edit-form').style.display = 'none';
+  });
   
-  // Благодарность
   document.getElementById('save-gratitude')?.addEventListener('click', saveGratitude);
-  
-  // Бады
   document.getElementById('add-supplement')?.addEventListener('click', addSupplement);
-  
-  // Синхронизация
   document.getElementById('syncBtn')?.addEventListener('click', syncData);
 }
 
 // === ЗАДАЧИ ===
-function saveTasks() {
-  const tasks = [];
+async function saveTasks() {
+  const today = new Date().toISOString().split('T')[0];
+  
   for (let i = 1; i <= 3; i++) {
     const input = document.getElementById(`task-input-${i}`);
     const checkbox = document.querySelector(`.daily-task-check[data-task="${i}"]`);
     if (input && input.value.trim()) {
-      tasks.push({
-        id: `task_${new Date().toISOString().split('T')[0]}_${i}`,
+      await db.put('daily_tasks', {
+        id: `task_${today}_${i}`,
         text: input.value.trim(),
         completed: checkbox?.checked || false,
-        date: new Date().toISOString().split('T')[0]
+        date: today
       });
     }
   }
   
-  tasks.forEach(task => db.put('daily_tasks', task));
   updateHistory();
+  updateProgressChart();
   notifications.showToast('Задачи сохранены', 'success');
 }
 
@@ -229,6 +241,7 @@ async function loadTasks() {
   });
   
   updateHistory();
+  updateProgressChart();
 }
 
 async function updateHistory() {
@@ -236,7 +249,6 @@ async function updateHistory() {
   const tasks = await db.getByIndex('daily_tasks', 'date', today);
   const completedToday = tasks.filter(t => t.completed).length;
   
-  // За неделю
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weekTasks = await db.getAll('daily_tasks');
@@ -246,13 +258,13 @@ async function updateHistory() {
   }).length;
   
   const total = tasks.length || 3;
-  const rate = Math.round((completedToday / total) * 100);
+  const rate = Math.round((completedToday / total) * 100) || 0;
   
   document.getElementById('completed-today').textContent = completedToday;
   document.getElementById('completed-week').textContent = completedWeek;
   document.getElementById('completion-rate').textContent = `${rate}%`;
   
-  // История по дням
+  // История с текстом задач
   const historyList = document.getElementById('history-list');
   if (historyList) {
     const last7Days = [];
@@ -261,33 +273,181 @@ async function updateHistory() {
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
       const dayTasks = await db.getByIndex('daily_tasks', 'date', dateStr);
-      const completed = dayTasks.filter(t => t.completed).length;
-      last7Days.push({ date: dateStr, completed, total: dayTasks.length || 3 });
+      last7Days.push({ 
+        date: dateStr, 
+        tasks: dayTasks,
+        completed: dayTasks.filter(t => t.completed).length,
+        total: dayTasks.length || 3
+      });
     }
     
     historyList.innerHTML = last7Days.map(day => `
-      <div class="history-item">
-        <span class="history-date">${formatDate(day.date)}</span>
-        <span class="history-completed">${day.completed}/${day.total}</span>
+      <div class="history-day">
+        <div class="history-day-header">
+          <span class="history-date">${formatDate(day.date)}</span>
+          <span class="history-completed">${day.completed}/${day.total}</span>
+        </div>
+        ${day.tasks.length > 0 ? `
+          <div class="history-tasks">
+            ${day.tasks.map(task => `
+              <div class="history-task ${task.completed ? 'completed' : ''}">
+                <span class="task-checkbox">${task.completed ? '✅' : '⬜'}</span>
+                <span class="task-text">${task.text}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<p class="empty-state-small">Нет задач</p>'}
       </div>
     `).join('');
   }
 }
 
+async function updateProgressChart() {
+  const chartBars = document.getElementById('chart-bars');
+  const chartLabels = document.getElementById('chart-labels');
+  
+  if (!chartBars) return;
+  
+  const last7Days = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayTasks = await db.getByIndex('daily_tasks', 'date', dateStr);
+    const completed = dayTasks.filter(t => t.completed).length;
+    const total = dayTasks.length || 3;
+    const percent = Math.round((completed / total) * 100);
+    last7Days.push({ date: dateStr, percent, day: date.toLocaleDateString('ru-RU', { weekday: 'short' }) });
+  }
+  
+  chartBars.innerHTML = last7Days.map(day => `
+    <div class="chart-bar-container">
+      <div class="chart-bar" style="height: ${day.percent}%"></div>
+    </div>
+  `).join('');
+  
+  chartLabels.innerHTML = last7Days.map(day => `
+    <span class="chart-label">${day.day}</span>
+  `).join('');
+}
+
 function formatDate(dateStr) {
   const date = new Date(dateStr);
-  const options = { weekday: 'short', day: 'numeric' };
+  const options = { weekday: 'long', day: 'numeric', month: 'short' };
   return date.toLocaleDateString('ru-RU', options);
 }
 
-function addPages() {
-  const bookTitle = document.getElementById('book-title').value || 'Текущая книга';
-  const pagesEl = document.getElementById('pages-today');
-  const current = parseInt(pagesEl.textContent) || 0;
-  pagesEl.textContent = current + 10;
-  notifications.showToast('+10 страниц', 'success');
+// === КНИГИ ===
+async function saveBook() {
+  const titleInput = document.getElementById('book-title-input');
+  const pagesInput = document.getElementById('book-total-pages');
+  
+  const title = titleInput.value.trim();
+  const totalPages = parseInt(pagesInput.value) || 0;
+  
+  if (!title) {
+    notifications.showToast('Введите название книги', 'warning');
+    return;
+  }
+  
+  const book = {
+    id: `book_${Date.now()}`,
+    title,
+    total_pages: totalPages,
+    pages_read: 0,
+    is_current: true,
+    created_at: new Date().toISOString()
+  };
+  
+  // Снимаем флаг current с других книг
+  const books = await db.getAll('books') || [];
+  for (const b of books) {
+    b.is_current = false;
+    await db.put('books', b);
+  }
+  
+  await db.put('books', book);
+  appState.currentBook = book;
+  
+  titleInput.value = '';
+  pagesInput.value = '';
+  document.getElementById('book-form').style.display = 'none';
+  
+  loadBooks();
+  notifications.showToast('Книга добавлена', 'success');
 }
 
+async function loadBooks() {
+  const books = await db.getAll('books') || [];
+  const list = document.getElementById('books-list');
+  
+  if (!list) return;
+  
+  if (books.length === 0) {
+    list.innerHTML = '<p class="empty-state">Нет добавленных книг</p>';
+    return;
+  }
+  
+  const currentBook = books.find(b => b.is_current) || books[0];
+  appState.currentBook = currentBook;
+  
+  list.innerHTML = books.map(book => {
+    const percent = book.total_pages > 0 ? Math.round((book.pages_read / book.total_pages) * 100) : 0;
+    return `
+      <div class="book-item ${book.is_current ? 'current' : ''}">
+        <div class="book-info">
+          <span class="book-title">${book.title}</span>
+          <span class="book-pages">${book.pages_read} / ${book.total_pages} стр.</span>
+        </div>
+        <div class="book-progress-bar">
+          <div class="book-progress-fill" style="width: ${percent}%"></div>
+        </div>
+        <div class="book-actions">
+          <button class="btn btn-sm btn-primary" onclick="addBookPage('${book.id}')">+10 стр.</button>
+          ${!book.is_current ? `<button class="btn btn-sm btn-outline" onclick="setCurrentBook('${book.id}')">Текущая</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function addBookPage(bookId) {
+  const books = await db.getAll('books') || [];
+  const book = books.find(b => b.id === bookId);
+  
+  if (book) {
+    book.pages_read += 10;
+    await db.put('books', book);
+    
+    if (book.is_current) {
+      appState.currentBook = book;
+    }
+    
+    loadBooks();
+    notifications.showToast('+10 страниц', 'success');
+    
+    // Проверка достижения
+    if (book.pages_read >= 10 && !book.achievement_unlocked) {
+      await db.unlockAchievement('first-book');
+      notifications.showToast('🏆 Достижение: Первая книга!', 'success');
+      book.achievement_unlocked = true;
+    }
+  }
+}
+
+async function setCurrentBook(bookId) {
+  const books = await db.getAll('books') || [];
+  
+  for (const b of books) {
+    b.is_current = b.id === bookId;
+    await db.put('books', b);
+  }
+  
+  loadBooks();
+  notifications.showToast('Книга выбрана текущей', 'success');
+}
+
+// === ТАЙМЕРЫ ===
 function toggleExerciseTimer() {
   const btn = document.getElementById('start-exercise');
   
@@ -406,7 +566,7 @@ function toggleDND(e) {
     statusEl.textContent = 'Включён';
     timerEl.style.display = 'block';
     
-    let remaining = 60 * 60; // 1 час по умолчанию
+    let remaining = 60 * 60;
     
     appState.dndTimer = setInterval(() => {
       remaining--;
@@ -456,7 +616,6 @@ async function learnWords() {
     return;
   }
   
-  // Берём 5 случайных слов из разных категорий
   const allWords = Object.values(WORD_DICTIONARIES).flat();
   const shuffled = allWords.sort(() => 0.5 - Math.random());
   const newWords = shuffled.slice(0, 5);
@@ -473,7 +632,6 @@ async function learnWords() {
     </div>
   `).join('');
   
-  // Сохраняем слова
   for (const word of newWords) {
     await db.saveWord({
       word: word.word,
@@ -502,25 +660,62 @@ async function loadWords() {
 }
 
 // === КАЛЕНДАРЬ ЖИЗНИ ===
+async function saveBirthDate() {
+  const input = document.getElementById('birth-date-input');
+  const birthDate = input.value;
+  
+  if (!birthDate) {
+    notifications.showToast('Выберите дату', 'warning');
+    return;
+  }
+  
+  appState.userProfile.birthDate = birthDate;
+  
+  // Сохраняем в профиль
+  const profile = await db.get('users', 'current') || { id: 'current' };
+  profile.birthDate = birthDate;
+  await db.put('users', profile);
+  
+  initLifeCalendar();
+  notifications.showToast('Дата рождения сохранена', 'success');
+}
+
 function initLifeCalendar() {
   const grid = document.getElementById('life-grid');
   if (!grid) return;
   
-  // Дата рождения (примерная - 25 лет назад)
-  const birthDate = new Date();
-  birthDate.setFullYear(birthDate.getFullYear() - 25);
+  // Получаем дату рождения из профиля или используем дефолт
+  let birthDate;
+  if (appState.userProfile.birthDate) {
+    birthDate = new Date(appState.userProfile.birthDate);
+  } else {
+    birthDate = new Date();
+    birthDate.setFullYear(birthDate.getFullYear() - 25);
+  }
   
   const now = new Date();
   const weeksInLife = Math.floor((now - birthDate) / (7 * 24 * 60 * 60 * 1000));
   const totalWeeks = 4000;
+  const weeksLeft = totalWeeks - weeksInLife;
+  const lifePercent = Math.round((weeksInLife / totalWeeks) * 100);
   
   document.getElementById('weeks-lived').textContent = weeksInLife;
-  document.getElementById('life-percent').textContent = Math.round((weeksInLife / totalWeeks) * 100) + '%';
-  document.getElementById('age-value').textContent = Math.floor((now - birthDate) / (365.25 * 24 * 60 * 60 * 1000)) + ' лет';
-  document.getElementById('weeks-value').textContent = weeksInLife;
-  document.getElementById('weeks-left').textContent = totalWeeks - weeksInLife;
+  document.getElementById('total-weeks').textContent = totalWeeks;
+  document.getElementById('life-percent').textContent = lifePercent + '%';
   
-  // Генерация сетки (показываем по 52 недели в строке = 1 год)
+  const ageYears = Math.floor((now - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
+  document.getElementById('age-value').textContent = ageYears + ' лет';
+  document.getElementById('weeks-value').textContent = weeksInLife;
+  document.getElementById('weeks-left').textContent = weeksLeft;
+  document.getElementById('birth-date-display').textContent = birthDate.toLocaleDateString('ru-RU');
+  
+  // Обновляем поле ввода
+  const birthInput = document.getElementById('birth-date-input');
+  if (birthInput && !birthInput.value) {
+    birthInput.value = appState.userProfile.birthDate || '';
+  }
+  
+  // Генерация сетки
   grid.innerHTML = '';
   for (let i = 0; i < totalWeeks; i++) {
     const week = document.createElement('div');
@@ -538,10 +733,19 @@ function initLifeCalendar() {
 
 // === ПРОФИЛЬ ===
 async function loadProfile() {
-  const profile = await db.get('users', 'current') || { name: '', email: 'user@example.com' };
+  const profile = await db.get('users', 'current');
   
-  document.getElementById('profile-name').value = profile.name || '';
-  document.getElementById('profile-email').textContent = profile.email;
+  if (profile) {
+    appState.userProfile = {
+      fullName: profile.fullName || '',
+      birthDate: profile.birthDate || null,
+      email: profile.email || 'user@example.com'
+    };
+  }
+  
+  // Обновляем UI
+  document.getElementById('profile-name-display').textContent = appState.userProfile.fullName || 'Гость';
+  document.getElementById('profile-email').textContent = appState.userProfile.email;
   
   // Статистика
   const tasks = await db.getAll('daily_tasks');
@@ -551,13 +755,36 @@ async function loadProfile() {
   document.getElementById('total-tasks').textContent = tasks.filter(t => t.completed).length;
   document.getElementById('total-words').textContent = words.length;
   document.getElementById('focus-minutes').textContent = focus.reduce((sum, s) => sum + (s.duration || 0), 0);
+  
+  // Если есть дата рождения, обновляем календарь
+  if (appState.userProfile.birthDate) {
+    initLifeCalendar();
+  }
 }
 
-function saveProfile() {
-  const name = document.getElementById('profile-name').value.trim();
-  const email = document.getElementById('profile-email').textContent;
+async function saveProfile() {
+  const fullName = document.getElementById('profile-fullname').value.trim();
+  const birthDate = document.getElementById('profile-birthdate').value;
+  const email = document.getElementById('profile-email-input').value.trim();
   
-  db.put('users', { id: 'current', name, email });
+  appState.userProfile = {
+    id: 'current',
+    fullName,
+    birthDate: birthDate || null,
+    email: email || 'user@example.com'
+  };
+  
+  await db.put('users', appState.userProfile);
+  
+  document.getElementById('profile-name-display').textContent = fullName;
+  document.getElementById('profile-email').textContent = email;
+  document.getElementById('profile-edit-form').style.display = 'none';
+  
+  // Обновляем календарь если изменилась дата рождения
+  if (birthDate) {
+    initLifeCalendar();
+  }
+  
   notifications.showToast('Профиль сохранён', 'success');
 }
 
@@ -639,3 +866,7 @@ async function syncData() {
     notifications.showToast('Данные синхронизированы', 'success');
   }, 1000);
 }
+
+// Глобальные функции для книг
+window.addBookPage = addBookPage;
+window.setCurrentBook = setCurrentBook;
