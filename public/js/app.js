@@ -115,12 +115,6 @@ class App {
     await this.loadWords();
     await this.loadAchievements();
 
-    // Скрыть сплэш и показать приложение
-    setTimeout(() => {
-      document.getElementById('splash-screen').classList.add('hidden');
-      document.getElementById('app').classList.remove('hidden');
-    }, 1500);
-
     // Планирование уведомлений
     notifications.scheduleWaterReminder();
   }
