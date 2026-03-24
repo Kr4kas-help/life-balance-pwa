@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Баланс Жизни">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="description" content="Приложение для продуктивности и самосовершенствования">
+  <meta name="format-detection" content="telephone=no">
+  
+  <title>Баланс Жизни</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <link rel="apple-touch-startup-image" href="/icons/icon-512.svg">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Стили -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Загрузочный экран -->
+  <div id="splash-screen">
+    <div class="splash-content">
+      <div class="splash-icon">⚡</div>
+      <div class="splash-title">Баланс Жизни</div>
+      <div class="splash-loader">
+        <div class="loader-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Основной контейнер приложения -->
+  <div id="app" class="hidden">
+    <!-- Верхняя панель -->
+    <header class="top-bar">
+      <div class="top-bar-content">
+        <span class="app-title">Баланс Жизни</span>
+        <div class="header-actions">
+          <button class="icon-btn" id="syncBtn" title="Синхронизация">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Контент вкладок -->
+    <main class="content">
+      <!-- Главная (Dashboard) -->
+      <section id="tab-dashboard" class="tab-content active" data-tab="dashboard">
+        <div class="dashboard">
+          <!-- Приветствие -->
+          <div class="greeting-section">
+            <h1 id="greeting-text">Доброе утро</h1>
+            <p id="current-date" class="date-text">Понедельник, 24 марта</p>
+          </div>
+
+          <!-- Прогресс -->
+          <div class="progress-section">
+            <div class="progress-circle-container">
+              <svg class="progress-circle" viewBox="0 0 100 100">
+                <circle class="progress-bg" cx="50" cy="50" r="45"/>
+                <circle class="progress-fill" cx="50" cy="50" r="45" id="daily-progress-circle"/>
+              </svg>
+              <div class="progress-text">
+                <span id="progress-percent">0%</span>
+                <span class="progress-label">дня</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Задачи на день -->
+          <div class="daily-tasks-card">
+            <h3>Задачи на сегодня</h3>
+            <div class="tasks-list" id="dashboard-tasks">
+              <div class="task-item" data-task="reading">
+                <label class="checkbox-container">
+                  <input type="checkbox" id="dash-task-1">
+                  <span class="checkmark"></span>
+                </label>
+                <span>10 страниц книги</span>
+              </div>
+              <div class="task-item" data-task="water">
+                <label class="checkbox-container">
+                  <input type="checkbox" id="dash-task-2">
+                  <span class="checkmark"></span>
+                </label>
+                <span>0.5л воды</span>
+              </div>
+              <div class="task-item" data-task="exercise">
+                <label class="checkbox-container">
+                  <input type="checkbox" id="dash-task-3">
+                  <span class="checkmark"></span>
+                </label>
+                <span>Утренняя разминка</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Быстрые действия -->
+          <div class="quick-actions">
+            <button class="quick-action-btn" data-action="focus">
+              <span class="qa-icon">🎯</span>
+              <span>Фокус</span>
+            </button>
+            <button class="quick-action-btn" data-action="water">
+              <span class="qa-icon">💧</span>
+              <span>Вода</span>
+            </button>
+            <button class="quick-action-btn" data-action="walk">
+              <span class="qa-icon">🚶</span>
+              <span>Прогулка</span>
+            </button>
+            <button class="quick-action-btn" data-action="gratitude">
+              <span class="qa-icon">🙏</span>
+              <span>Благодарность</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Задачи -->
+      <section id="tab-tasks" class="tab-content" data-tab="tasks">
+        <div class="tasks-page">
+          <h2>Ежедневные дела</h2>
+
+          <!-- Чтение -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">📖</span>
+              <h3>10 страниц книги</h3>
+            </div>
+            <div class="task-body">
+              <input type="text" id="book-title" class="input-field" placeholder="Название книги">
+              <div class="counter-section">
+                <div class="counter-display">
+                  <span id="pages-today">0</span>
+                  <span class="counter-label">страниц сегодня</span>
+                </div>
+                <button class="btn btn-primary" id="add-10-pages">+10 стр.</button>
+              </div>
+              <div class="weekly-stats" id="weekly-reading">
+                <h4>За неделю</h4>
+                <div class="week-days" id="week-reading-chart"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Разминка -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🧘</span>
+              <h3>Утренняя разминка 5 мин</h3>
+            </div>
+            <div class="task-body">
+              <div class="timer-display" id="exercise-timer">
+                <span class="timer-time">05:00</span>
+              </div>
+              <div class="timer-controls">
+                <button class="btn btn-primary" id="start-exercise">Старт</button>
+                <button class="btn btn-secondary" id="reset-exercise">Сброс</button>
+              </div>
+              <div class="exercise-animations">
+                <div class="exercise-item">🤸 Растяжка</div>
+                <div class="exercise-item">🏃 Приседания</div>
+                <div class="exercise-item">💪 Отжимания</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Вода -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">💧</span>
+              <h3>0.5л воды</h3>
+            </div>
+            <div class="task-body">
+              <div class="water-glass">
+                <div class="glass-container">
+                  <div class="glass" id="water-glass">
+                    <div class="water-level" id="water-level"></div>
+                  </div>
+                  <span class="glass-label" id="water-count">0/500 мл</span>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-water" id="add-water">+250мл</button>
+            </div>
+          </div>
+
+          <!-- Чеклист -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">✅</span>
+              <h3>3 задачи на день</h3>
+            </div>
+            <div class="task-body">
+              <div class="checklist" id="daily-checklist">
+                <div class="checklist-item">
+                  <label class="checkbox-container">
+                    <input type="checkbox" class="daily-task-check">
+                    <span class="checkmark"></span>
+                  </label>
+                  <input type="text" class="task-input" placeholder="Задача 1">
+                </div>
+                <div class="checklist-item">
+                  <label class="checkbox-container">
+                    <input type="checkbox" class="daily-task-check">
+                    <span class="checkmark"></span>
+                  </label>
+                  <input type="text" class="task-input" placeholder="Задача 2">
+                </div>
+                <div class="checklist-item">
+                  <label class="checkbox-container">
+                    <input type="checkbox" class="daily-task-check">
+                    <span class="checkmark"></span>
+                  </label>
+                  <input type="text" class="task-input" placeholder="Задача 3">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Фокус -->
+      <section id="tab-focus" class="tab-content" data-tab="focus">
+        <div class="focus-page">
+          <h2>Таймер и режимы</h2>
+
+          <!-- Pomodoro -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🍅</span>
+              <h3>Таймер фокуса (Pomodoro)</h3>
+            </div>
+            <div class="task-body">
+              <div class="timer-display large" id="pomodoro-timer">
+                <span class="timer-time" id="pomodoro-time">25:00</span>
+                <span class="timer-mode" id="pomodoro-mode">Фокус</span>
+              </div>
+              <div class="session-counter">
+                <span>Сессий: </span>
+                <span id="session-count">0</span>
+              </div>
+              <div class="timer-controls">
+                <button class="btn btn-primary btn-large" id="start-pomodoro">Старт</button>
+                <button class="btn btn-secondary" id="pause-pomodoro">Пауза</button>
+                <button class="btn btn-outline" id="reset-pomodoro">Сброс</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Не беспокоить -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🔕</span>
+              <h3>Режим "Не беспокоить"</h3>
+            </div>
+            <div class="task-body">
+              <div class="dnd-toggle">
+                <label class="switch">
+                  <input type="checkbox" id="dnd-switch">
+                  <span class="slider"></span>
+                </label>
+                <span id="dnd-status">Выключен</span>
+              </div>
+              <div class="dnd-settings" id="dnd-settings">
+                <label>Длительность:</label>
+                <select id="dnd-duration" class="select-field">
+                  <option value="30">30 минут</option>
+                  <option value="60" selected>1 час</option>
+                  <option value="120">2 часа</option>
+                  <option value="480">До утра</option>
+                </select>
+              </div>
+              <div class="dnd-timer" id="dnd-timer" style="display: none;">
+                <span>Осталось: </span>
+                <span id="dnd-remaining">00:00:00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Сон -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🌙</span>
+              <h3>Сон</h3>
+            </div>
+            <div class="task-body">
+              <div class="sleep-settings">
+                <label>Время отхода ко сну:</label>
+                <input type="time" id="sleep-time" class="time-field" value="23:00">
+              </div>
+              <div class="sleep-info" id="sleep-info">
+                <span>До сна осталось: </span>
+                <span id="sleep-remaining">--:--</span>
+              </div>
+              <button class="btn btn-secondary" id="enable-sleep-mode">Включить режим сна</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Изучать -->
+      <section id="tab-learn" class="tab-content" data-tab="learn">
+        <div class="learn-page">
+          <h2>Обучение</h2>
+
+          <!-- Новое слово -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">📚</span>
+              <h3>Изучить новое слово</h3>
+            </div>
+            <div class="task-body">
+              <div class="theme-selector">
+                <button class="theme-btn active" data-theme="business">💼 Бизнес</button>
+                <button class="theme-btn" data-theme="science">🔬 Наука</button>
+                <button class="theme-btn" data-theme="art">🎨 Искусство</button>
+                <button class="theme-btn" data-theme="sport">⚽ Спорт</button>
+                <button class="theme-btn" data-theme="tech">💻 Технологии</button>
+              </div>
+              <div class="word-card" id="word-card">
+                <div class="word-text" id="current-word">Нажмите "Следующее"</div>
+                <div class="word-translation" id="current-translation"></div>
+              </div>
+              <button class="btn btn-primary" id="next-word">Следующее слово</button>
+            </div>
+          </div>
+
+          <!-- История слов -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">📝</span>
+              <h3>История изученных слов</h3>
+            </div>
+            <div class="task-body">
+              <div class="words-history" id="words-history">
+                <p class="empty-state">Пока нет изученных слов</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Текущая книга -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">📖</span>
+              <h3>Текущая книга</h3>
+            </div>
+            <div class="task-body">
+              <input type="text" id="current-book-title" class="input-field" placeholder="Название книги">
+              <div class="book-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="book-progress-fill" style="width: 0%"></div>
+                </div>
+                <span id="book-progress-text">0 / 0 страниц</span>
+              </div>
+              <input type="number" id="total-pages" class="input-field" placeholder="Всего страниц">
+              <button class="btn btn-primary" id="update-book-progress">Обновить прогресс</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Профиль -->
+      <section id="tab-profile" class="tab-content" data-tab="profile">
+        <div class="profile-page">
+          <h2>Личное</h2>
+
+          <!-- Благодарность -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🙏</span>
+              <h3>Благодарность</h3>
+            </div>
+            <div class="task-body">
+              <textarea id="gratitude-input" class="textarea-field" placeholder="За что вы благодарны сегодня?"></textarea>
+              <button class="btn btn-primary" id="save-gratitude">Сохранить</button>
+              <div class="gratitude-list" id="gratitude-today">
+                <h4>Сегодня:</h4>
+                <div id="today-gratitudes"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Икигай -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🎯</span>
+              <h3>Икигай - тест "Кто ты"</h3>
+            </div>
+            <div class="task-body">
+              <div class="ikigai-questions" id="ikigai-questions">
+                <div class="question-item">
+                  <p>Что вы любите делать?</p>
+                  <input type="text" class="input-field ikigai-input" data-question="1" placeholder="Ваш ответ...">
+                </div>
+                <div class="question-item">
+                  <p>В чём вы хороши?</p>
+                  <input type="text" class="input-field ikigai-input" data-question="2" placeholder="Ваш ответ...">
+                </div>
+                <div class="question-item">
+                  <p>За что вам могут платить?</p>
+                  <input type="text" class="input-field ikigai-input" data-question="3" placeholder="Ваш ответ...">
+                </div>
+                <div class="question-item">
+                  <p>Что нужно миру?</p>
+                  <input type="text" class="input-field ikigai-input" data-question="4" placeholder="Ваш ответ...">
+                </div>
+              </div>
+              <button class="btn btn-primary" id="calculate-ikigai">Узнать результат</button>
+              <div class="ikigai-result" id="ikigai-result" style="display: none;">
+                <div class="ikigai-diagram">
+                  <div class="circle c1">Любимое дело</div>
+                  <div class="circle c2">Профессия</div>
+                  <div class="circle c3">Призвание</div>
+                  <div class="circle c4">Миссия</div>
+                </div>
+                <p id="ikigai-description"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Календарь жизни -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">📅</span>
+              <h3>Календарь жизни в неделях</h3>
+            </div>
+            <div class="task-body">
+              <div class="life-calendar">
+                <div class="life-stats">
+                  <span id="weeks-lived">0</span> / 5200 недель
+                  <span id="life-percent">0%</span> жизни
+                </div>
+                <div class="life-grid" id="life-grid"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Контакты -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">👥</span>
+              <h3>Контакты умнее тебя</h3>
+            </div>
+            <div class="task-body">
+              <input type="text" id="contact-search" class="input-field" placeholder="Поиск по теме...">
+              <div class="contact-form">
+                <input type="text" id="contact-name" class="input-field" placeholder="Имя">
+                <select id="contact-theme" class="select-field">
+                  <option value="tech">Технологии</option>
+                  <option value="business">Бизнес</option>
+                  <option value="health">Здоровье</option>
+                  <option value="learning">Обучение</option>
+                  <option value="motivation">Мотивация</option>
+                </select>
+                <input type="text" id="contact-info" class="input-field" placeholder="Контакт (Telegram, email...)">
+                <button class="btn btn-primary" id="add-contact">Добавить</button>
+              </div>
+              <div class="contacts-list" id="contacts-list"></div>
+            </div>
+          </div>
+
+          <!-- Достижения -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🏆</span>
+              <h3>Визуализация успеха</h3>
+            </div>
+            <div class="task-body">
+              <div class="achievements-grid" id="achievements-grid">
+                <div class="achievement" data-achievement="first-book">
+                  <span class="achievement-icon">📖</span>
+                  <span class="achievement-name">Первая книга</span>
+                  <div class="achievement-progress"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="achievement" data-achievement="water-master">
+                  <span class="achievement-icon">💧</span>
+                  <span class="achievement-name">Водный мастер</span>
+                  <div class="achievement-progress"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="achievement" data-achievement="focus-champion">
+                  <span class="achievement-icon">🎯</span>
+                  <span class="achievement-name">Чемпион фокуса</span>
+                  <div class="achievement-progress"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="achievement" data-achievement="word-learner">
+                  <span class="achievement-icon">📚</span>
+                  <span class="achievement-name">Словоед</span>
+                  <div class="achievement-progress"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="achievement" data-achievement="early-bird">
+                  <span class="achievement-icon">🌅</span>
+                  <span class="achievement-name">Ранняя пташка</span>
+                  <div class="achievement-progress"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+                <div class="achievement" data-achievement="grateful">
+                  <span class="achievement-icon">🙏</span>
+                  <span class="achievement-name">Благодарный</span>
+                  <div class="achievement-progress"><div class="progress-fill" style="width: 0%"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Бады и витамины -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">💊</span>
+              <h3>Бады и витамины</h3>
+            </div>
+            <div class="task-body">
+              <div class="supplements-form">
+                <input type="text" id="supplement-name" class="input-field" placeholder="Название добавки">
+                <button class="btn btn-primary" id="add-supplement">Добавить</button>
+              </div>
+              <div class="supplements-table">
+                <table id="supplements-table">
+                  <thead>
+                    <tr>
+                      <th>Добавка</th>
+                      <th>Принято</th>
+                    </tr>
+                  </thead>
+                  <tbody id="supplements-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Карта -->
+      <section id="tab-map" class="tab-content" data-tab="map">
+        <div class="map-page">
+          <h2>Смена обстановки</h2>
+
+          <div class="task-card">
+            <div class="task-body full-width">
+              <div id="map"></div>
+              <div class="location-info">
+                <span class="location-icon">📍</span>
+                <span id="location-text">Определение местоположения...</span>
+              </div>
+              <button class="btn btn-primary btn-large" id="start-walk">
+                <span>🚶</span> Я на прогулке
+              </button>
+              <div class="walks-history" id="walks-history">
+                <h4>История прогулок</h4>
+                <div id="walks-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Нижняя навигация -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-tab="dashboard">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">Главная</span>
+      </button>
+      <button class="nav-item" data-tab="tasks">
+        <span class="nav-icon">✅</span>
+        <span class="nav-label">Задачи</span>
+      </button>
+      <button class="nav-item" data-tab="focus">
+        <span class="nav-icon">⏱️</span>
+        <span class="nav-label">Фокус</span>
+      </button>
+      <button class="nav-item" data-tab="learn">
+        <span class="nav-icon">📖</span>
+        <span class="nav-label">Изучать</span>
+      </button>
+      <button class="nav-item" data-tab="profile">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Профиль</span>
+      </button>
+      <button class="nav-item" data-tab="map">
+        <span class="nav-icon">🗺️</span>
+        <span class="nav-label">Карта</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Основной JS -->
+  <script src="/js/db.js"></script>
+  <script src="/js/notifications.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
