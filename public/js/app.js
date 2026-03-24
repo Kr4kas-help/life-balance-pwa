@@ -64,859 +64,578 @@ const WORD_DICTIONARIES = {
   ]
 };
 
+// Состояние приложения
+const appState = {
+  currentTab: 'tasks',
+  focusTimer: null,
+  exerciseTimer: null,
+  dndTimer: null,
+  focusTime: 25 * 60,
+  focusIsRunning: false,
+  exerciseTime: 5 * 60,
+  exerciseIsRunning: false,
+  sessionsToday: 0,
+  wordsToday: [],
+  uploadedFile: null
+};
+
 // Инициализация приложения
-class App {
-  constructor() {
-    this.currentTab = 'dashboard';
-    this.currentTheme = 'business';
-    this.map = null;
-    this.userLocation = null;
-    this.timers = {
-      pomodoro: null,
-      exercise: null,
-      dnd: null,
-      sleep: null
-    };
-    this.timerState = {
-      pomodoro: { time: 25 * 60, isRunning: false, isBreak: false, sessions: 0 },
-      exercise: { time: 5 * 60, isRunning: false }
-    };
-    this.init();
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  initNavigation();
+  initEventListeners();
+  loadProfile();
+  loadTasks();
+  loadHistory();
+  loadGratitudes();
+  loadSupplements();
+  loadWords();
+  loadAchievements();
+  initLifeCalendar();
+  notifications.scheduleWaterReminder();
+});
 
-  async init() {
-    // Регистрация Service Worker
-    if ('serviceWorker' in navigator) {
-      try {
-        await navigator.serviceWorker.register('/sw.js');
-        console.log('Service Worker зарегистрирован');
-      } catch (e) {
-        console.error('SW registration failed:', e);
-      }
-    }
-
-    // Установка PWA
-    this.setupPWAInstall();
-
-    // Инициализация UI
-    this.setupNavigation();
-    this.setupEventListeners();
-    this.updateGreeting();
-    this.updateDate();
-    this.initMap();
-    this.initLifeCalendar();
-
-    // Загрузка данных
-    await this.loadDailyProgress();
-    await this.loadWaterProgress();
-    await this.loadGratitudes();
-    await this.loadSupplements();
-    await this.loadContacts();
-    await this.loadWords();
-    await this.loadAchievements();
-
-    // Планирование уведомлений
-    notifications.scheduleWaterReminder();
-  }
-
-  setupPWAInstall() {
-    let deferredPrompt;
-    
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      
-      // Показываем кнопку установки
-      const installBtn = document.createElement('button');
-      installBtn.className = 'btn btn-primary install-btn';
-      installBtn.textContent = 'Установить приложение';
-      installBtn.style.cssText = 'position: fixed; bottom: 80px; right: 16px; z-index: 1000;';
-      
-      installBtn.addEventListener('click', async () => {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          installBtn.remove();
-        }
-      });
-      
-      document.body.appendChild(installBtn);
+// Навигация
+function initNavigation() {
+  const navItems = document.querySelectorAll('.nav-item');
+  
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const tab = item.dataset.tab;
+      switchTab(tab);
     });
-  }
+  });
+}
 
-  setupNavigation() {
-    const navItems = document.querySelectorAll('.nav-item');
-    
-    navItems.forEach(item => {
-      item.addEventListener('click', () => {
-        const tab = item.dataset.tab;
-        this.switchTab(tab);
-      });
-    });
-
-    // Свайп-жесты
-    let touchStartX = 0;
-    let touchEndX = 0;
-
-    document.addEventListener('touchstart', (e) => {
-      touchStartX = e.changedTouches[0].screenX;
-    });
-
-    document.addEventListener('touchend', (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      this.handleSwipe(touchStartX, touchEndX);
-    });
-  }
-
-  handleSwipe(start, end) {
-    const threshold = 50;
-    const diff = start - end;
-    
-    if (Math.abs(diff) > threshold) {
-      const tabs = ['dashboard', 'tasks', 'focus', 'learn', 'profile', 'map'];
-      const currentIndex = tabs.indexOf(this.currentTab);
-      
-      if (diff > 0 && currentIndex < tabs.length - 1) {
-        this.switchTab(tabs[currentIndex + 1]);
-      } else if (diff < 0 && currentIndex > 0) {
-        this.switchTab(tabs[currentIndex - 1]);
-      }
-    }
-  }
-
-  switchTab(tabName) {
-    this.currentTab = tabName;
-    
-    // Обновляем навигацию
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.classList.toggle('active', item.dataset.tab === tabName);
-    });
-    
-    // Обновляем контент
-    document.querySelectorAll('.tab-content').forEach(content => {
-      content.classList.toggle('active', content.dataset.tab === tabName);
-    });
-
-    // Инициализация карты при переходе на вкладку карты
-    if (tabName === 'map' && this.map) {
-      setTimeout(() => this.map.invalidateSize(), 100);
-    }
-  }
-
-  setupEventListeners() {
-    // Quick actions
-    document.querySelectorAll('.quick-action-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const action = btn.dataset.action;
-        this.handleQuickAction(action);
-      });
-    });
-
-    // Задачи на главной
-    document.querySelectorAll('#dashboard-tasks .checkbox-container input').forEach((checkbox, index) => {
-      checkbox.addEventListener('change', (e) => {
-        const taskItem = e.target.closest('.task-item');
-        taskItem.classList.toggle('completed', e.target.checked);
-        this.saveDailyTask(index + 1, e.target.checked);
-      });
-    });
-
-    // Книга - +10 страниц
-    document.getElementById('add-10-pages')?.addEventListener('click', () => this.addPages(10));
-    
-    // Вода
-    document.getElementById('add-water')?.addEventListener('click', () => this.addWater(250));
-
-    // Таймер разминки
-    document.getElementById('start-exercise')?.addEventListener('click', () => this.startExerciseTimer());
-    document.getElementById('reset-exercise')?.addEventListener('click', () => this.resetExerciseTimer());
-
-    // Pomodoro
-    document.getElementById('start-pomodoro')?.addEventListener('click', () => this.startPomodoro());
-    document.getElementById('pause-pomodoro')?.addEventListener('click', () => this.pausePomodoro());
-    document.getElementById('reset-pomodoro')?.addEventListener('click', () => this.resetPomodoro());
-
-    // DND
-    document.getElementById('dnd-switch')?.addEventListener('change', (e) => this.toggleDND(e.target.checked));
-    document.getElementById('dnd-duration')?.addEventListener('change', (e) => this.updateDNDDuration(e.target.value));
-
-    // Сон
-    document.getElementById('sleep-time')?.addEventListener('change', () => this.updateSleepInfo());
-    document.getElementById('enable-sleep-mode')?.addEventListener('click', () => this.enableSleepMode());
-
-    // Слова
-    document.querySelectorAll('.theme-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.currentTheme = btn.dataset.theme;
-      });
-    });
-    document.getElementById('next-word')?.addEventListener('click', () => this.showNextWord());
-
-    // Книга (текущая)
-    document.getElementById('update-book-progress')?.addEventListener('click', () => this.updateBookProgress());
-
-    // Благодарность
-    document.getElementById('save-gratitude')?.addEventListener('click', () => this.saveGratitude());
-
-    // Икигай
-    document.getElementById('calculate-ikigai')?.addEventListener('click', () => this.calculateIkigai());
-
-    // Контакты
-    document.getElementById('add-contact')?.addEventListener('click', () => this.addContact());
-    document.getElementById('contact-search')?.addEventListener('input', (e) => this.searchContacts(e.target.value));
-
-    // Бады
-    document.getElementById('add-supplement')?.addEventListener('click', () => this.addSupplement());
-
-    // Прогулка
-    document.getElementById('start-walk')?.addEventListener('click', () => this.startWalk());
-
-    // Синхронизация
-    document.getElementById('syncBtn')?.addEventListener('click', () => this.sync());
-
-    // Чеклист задач
-    document.querySelectorAll('.daily-task-check').forEach(checkbox => {
-      checkbox.addEventListener('change', () => this.saveDailyChecklist());
-    });
-  }
-
-  // Обновление приветствия и даты
-  updateGreeting() {
-    const hour = new Date().getHours();
-    let greeting = 'Доброе утро';
-    
-    if (hour >= 12 && hour < 17) greeting = 'Добрый день';
-    else if (hour >= 17 && hour < 22) greeting = 'Добрый вечер';
-    else if (hour >= 22 || hour < 6) greeting = 'Доброй ночи';
-    
-    document.getElementById('greeting-text').textContent = greeting;
-  }
-
-  updateDate() {
-    const options = { weekday: 'long', day: 'numeric', month: 'long' };
-    const dateStr = new Date().toLocaleDateString('ru-RU', options);
-    document.getElementById('current-date').textContent = dateStr;
-  }
-
-  // Загрузка прогресса
-  async loadDailyProgress() {
-    const tasks = await db.getDailyTasks();
-    const progress = tasks.filter(t => t.completed).length;
-    const total = 3;
-    const percent = Math.round((progress / total) * 100);
-    
-    // Обновляем круг
-    const circle = document.getElementById('daily-progress-circle');
-    const circumference = 2 * Math.PI * 45;
-    circle.style.strokeDashoffset = circumference - (percent / 100) * circumference;
-    
-    document.getElementById('progress-percent').textContent = `${percent}%`;
-    
-    // Обновляем чекбоксы
-    tasks.forEach((task, index) => {
-      const checkbox = document.getElementById(`dash-task-${index + 1}`);
-      if (checkbox) {
-        checkbox.checked = task.completed;
-        checkbox.closest('.task-item').classList.toggle('completed', task.completed);
-      }
-    });
-  }
-
-  async loadWaterProgress() {
-    const today = new Date().toISOString().split('T')[0];
-    const total = await db.getWaterLog(today);
-    const goal = 500;
-    const percent = Math.min((total / goal) * 100, 100);
-    
-    document.getElementById('water-level').style.height = `${percent}%`;
-    document.getElementById('water-count').textContent = `${total}/${goal}мл`;
-  }
-
-  async loadGratitudes() {
-    const gratitudes = await db.getGratitudes();
-    const container = document.getElementById('today-gratitudes');
-    
-    if (container) {
-      container.innerHTML = gratitudes.map(g => 
-        `<div class="gratitude-item">${g.text}</div>`
-      ).join('');
-    }
-  }
-
-  async loadSupplements() {
-    const supplements = await db.getSupplements();
-    const tbody = document.getElementById('supplements-body');
-    
-    if (tbody) {
-      tbody.innerHTML = supplements.map(s => `
-        <tr>
-          <td>${s.name}</td>
-          <td>
-            <input type="checkbox" class="supplement-check" 
-              data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
-          </td>
-        </tr>
-      `).join('');
-      
-      // Обработчики чекбоксов
-      tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
-        checkbox.addEventListener('change', async () => {
-          await db.toggleSupplement(checkbox.dataset.id);
-        });
-      });
-    }
-  }
-
-  async loadContacts() {
-    const contacts = await db.getContacts();
-    const container = document.getElementById('contacts-list');
-    
-    if (container) {
-      container.innerHTML = contacts.map(c => `
-        <div class="contact-item">
-          <span class="contact-icon">👤</span>
-          <div class="contact-info">
-            <div class="contact-name">${c.name}</div>
-            <div class="contact-theme">${this.getThemeName(c.theme)}</div>
-            <div class="contact-data">${c.contact_info}</div>
-          </div>
-        </div>
-      `).join('');
-    }
-  }
-
-  async loadWords() {
-    const words = await db.getWords();
-    const container = document.getElementById('words-history');
-    
-    if (container && words.length > 0) {
-      container.innerHTML = words.slice(-10).reverse().map(w => `
-        <div class="word-history-item">
-          <div class="word-history-word">${w.word}</div>
-          <div class="word-history-translation">${w.translation}</div>
-          <div class="word-history-theme">${this.getThemeName(w.theme)}</div>
-        </div>
-      `).join('');
-    }
-  }
-
-  async loadAchievements() {
-    const achievements = await db.getAchievements();
-    const unlockedTypes = achievements.map(a => a.achievement_type);
-    
-    document.querySelectorAll('.achievement').forEach(el => {
-      const type = el.dataset.achievement;
-      if (unlockedTypes.includes(type)) {
-        el.classList.add('unlocked');
-      }
-    });
-  }
-
-  // Обработчики действий
-  handleQuickAction(action) {
-    switch (action) {
-      case 'focus':
-        this.switchTab('focus');
-        break;
-      case 'water':
-        this.addWater(250);
-        break;
-      case 'walk':
-        this.switchTab('map');
-        this.startWalk();
-        break;
-      case 'gratitude':
-        this.switchTab('profile');
-        document.getElementById('gratitude-input').focus();
-        break;
-    }
-  }
-
-  async saveDailyTask(taskNum, completed) {
-    const taskTypes = ['reading', 'water', 'exercise'];
-    await db.saveDailyTask({
-      task_type: taskTypes[taskNum - 1],
-      completed
-    });
-    await this.loadDailyProgress();
-  }
-
-  async addPages(pages) {
-    const bookTitle = document.getElementById('book-title').value || 'Текущая книга';
-    const book = await db.getCurrentBook() || { 
-      title: bookTitle, 
-      total_pages: 0, 
-      pages_read: 0,
-      is_current: true 
-    };
-    
-    book.pages_read += pages;
-    if (book.total_pages === 0) book.total_pages = 100;
-    
-    await db.saveBook(book);
-    
-    document.getElementById('pages-today').textContent = book.pages_read;
-    
-    // Проверка достижения
-    if (book.pages_read >= 10) {
-      await db.unlockAchievement('first-book');
-      notifications.notifyAchievement('Первая книга');
-    }
-    
-    notifications.showToast(`+${pages} страниц`);
-  }
-
-  async addWater(amount) {
-    await db.logWater(amount);
-    await this.loadWaterProgress();
-    notifications.showToast(`+${amount}мл воды`);
-  }
-
-  // Таймер разминки
-  startExerciseTimer() {
-    if (this.timerState.exercise.isRunning) return;
-    
-    this.timerState.exercise.isRunning = true;
-    document.getElementById('start-exercise').textContent = 'Пауза';
-    
-    this.timers.exercise = setInterval(() => {
-      this.timerState.exercise.time--;
-      this.updateTimerDisplay('exercise-timer', this.timerState.exercise.time);
-      
-      if (this.timerState.exercise.time <= 0) {
-        this.resetExerciseTimer();
-        notifications.show('🧘 Разминка завершена!', { body: 'Отличная работа!' });
-        notifications.playSound('complete');
-      }
-    }, 1000);
-    
-    document.getElementById('start-exercise').onclick = () => this.pauseExerciseTimer();
-  }
-
-  pauseExerciseTimer() {
-    clearInterval(this.timers.exercise);
-    this.timerState.exercise.isRunning = false;
-    document.getElementById('start-exercise').textContent = 'Продолжить';
-    document.getElementById('start-exercise').onclick = () => this.startExerciseTimer();
-  }
-
-  resetExerciseTimer() {
-    clearInterval(this.timers.exercise);
-    this.timerState.exercise.isRunning = false;
-    this.timerState.exercise.time = 5 * 60;
-    this.updateTimerDisplay('exercise-timer', this.timerState.exercise.time);
-    document.getElementById('start-exercise').textContent = 'Старт';
-    document.getElementById('start-exercise').onclick = () => this.startExerciseTimer();
-  }
-
-  // Pomodoro
-  startPomodoro() {
-    if (this.timerState.pomodoro.isRunning) return;
-    
-    this.timerState.pomodoro.isRunning = true;
-    document.getElementById('start-pomodoro').textContent = 'Пауза';
-    
-    this.timers.pomodoro = setInterval(() => {
-      this.timerState.pomodoro.time--;
-      this.updateTimerDisplay('pomodoro-time', this.timerState.pomodoro.time, true);
-      
-      if (this.timerState.pomodoro.time <= 0) {
-        this.handlePomodoroComplete();
-      }
-    }, 1000);
-    
-    document.getElementById('start-pomodoro').onclick = () => this.pausePomodoro();
-  }
-
-  pausePomodoro() {
-    clearInterval(this.timers.pomodoro);
-    this.timerState.pomodoro.isRunning = false;
-    document.getElementById('start-pomodoro').textContent = 'Продолжить';
-    document.getElementById('start-pomodoro').onclick = () => this.startPomodoro();
-  }
-
-  resetPomodoro() {
-    clearInterval(this.timers.pomodoro);
-    this.timerState.pomodoro.isRunning = false;
-    this.timerState.pomodoro.isBreak = false;
-    this.timerState.pomodoro.time = 25 * 60;
-    this.updateTimerDisplay('pomodoro-time', this.timerState.pomodoro.time, true);
-    document.getElementById('pomodoro-mode').textContent = 'Фокус';
-    document.getElementById('start-pomodoro').textContent = 'Старт';
-    document.getElementById('start-pomodoro').onclick = () => this.startPomodoro();
-  }
-
-  async handlePomodoroComplete() {
-    clearInterval(this.timers.pomodoro);
-    this.timerState.pomodoro.isRunning = false;
-    
-    if (!this.timerState.pomodoro.isBreak) {
-      // Завершена фокус-сессия
-      await db.saveFocusSession(25);
-      this.timerState.pomodoro.sessions++;
-      document.getElementById('session-count').textContent = this.timerState.pomodoro.sessions;
-      
-      notifications.notifyFocusComplete();
-      notifications.playSound('complete');
-      
-      // Переход на перерыв
-      this.timerState.pomodoro.isBreak = true;
-      this.timerState.pomodoro.time = 5 * 60;
-      document.getElementById('pomodoro-mode').textContent = 'Перерыв';
-    } else {
-      // Перерыв завершён
-      notifications.notifyBreakComplete();
-      notifications.playSound('complete');
-      
-      this.timerState.pomodoro.isBreak = false;
-      this.timerState.pomodoro.time = 25 * 60;
-      document.getElementById('pomodoro-mode').textContent = 'Фокус';
-    }
-    
-    this.updateTimerDisplay('pomodoro-time', this.timerState.pomodoro.time, true);
-    document.getElementById('start-pomodoro').textContent = 'Старт';
-    document.getElementById('start-pomodoro').onclick = () => this.startPomodoro();
-  }
-
-  // DND режим
-  toggleDND(enabled) {
-    const statusEl = document.getElementById('dnd-status');
-    const timerEl = document.getElementById('dnd-timer');
-    const duration = parseInt(document.getElementById('dnd-duration').value);
-    
-    if (enabled) {
-      statusEl.textContent = 'Включён';
-      timerEl.style.display = 'block';
-      
-      let remaining = duration * 60;
-      this.timers.dnd = setInterval(() => {
-        remaining--;
-        const hours = Math.floor(remaining / 3600);
-        const mins = Math.floor((remaining % 3600) / 60);
-        const secs = remaining % 60;
-        document.getElementById('dnd-remaining').textContent = 
-          `${hours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-        
-        if (remaining <= 0) {
-          this.toggleDND(false);
-          document.getElementById('dnd-switch').checked = false;
-        }
-      }, 1000);
-    } else {
-      statusEl.textContent = 'Выключен';
-      timerEl.style.display = 'none';
-      clearInterval(this.timers.dnd);
-    }
-  }
-
-  updateDNDDuration(value) {
-    if (document.getElementById('dnd-switch').checked) {
-      this.toggleDND(false);
-      document.getElementById('dnd-switch').checked = true;
-      this.toggleDND(true);
-    }
-  }
-
-  // Режим сна
-  updateSleepInfo() {
-    const sleepTime = document.getElementById('sleep-time').value;
-    const [hours, minutes] = sleepTime.split(':').map(Number);
-    
-    const now = new Date();
-    const sleep = new Date(now);
-    sleep.setHours(hours, minutes, 0, 0);
-    
-    if (sleep <= now) {
-      sleep.setDate(sleep.getDate() + 1);
-    }
-    
-    const diff = sleep - now;
-    const hoursLeft = Math.floor(diff / (1000 * 60 * 60));
-    const minsLeft = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    document.getElementById('sleep-remaining').textContent = `${hoursLeft}ч ${minsLeft}мин`;
-  }
-
-  enableSleepMode() {
-    const sleepTime = document.getElementById('sleep-time').value;
-    const [hours] = sleepTime.split(':').map(Number);
-    
-    // Включаем DND до утра
-    document.getElementById('dnd-duration').value = '480';
-    document.getElementById('dnd-switch').checked = true;
-    this.toggleDND(true);
-    
-    notifications.show('🌙 Режим сна включён', {
-      body: 'Уведомления отключены до утра'
-    });
-  }
-
-  // Слова
-  showNextWord() {
-    const words = WORD_DICTIONARIES[this.currentTheme];
-    const randomWord = words[Math.floor(Math.random() * words.length)];
-    
-    document.getElementById('current-word').textContent = randomWord.word;
-    document.getElementById('current-translation').textContent = randomWord.translation;
-    
-    // Сохраняем слово
-    db.saveWord({
-      word: randomWord.word,
-      translation: randomWord.translation,
-      theme: this.currentTheme
-    });
-    
-    this.loadWords();
-  }
-
-  async updateBookProgress() {
-    const title = document.getElementById('current-book-title').value;
-    const totalPages = parseInt(document.getElementById('total-pages').value) || 100;
-    const todayPages = parseInt(document.getElementById('pages-today').textContent) || 0;
-    
-    const book = {
-      title,
-      total_pages: totalPages,
-      pages_read: todayPages,
-      is_current: true
-    };
-    
-    await db.saveBook(book);
-    
-    const percent = Math.round((todayPages / totalPages) * 100);
-    document.getElementById('book-progress-fill').style.width = `${percent}%`;
-    document.getElementById('book-progress-text').textContent = `${todayPages} / ${totalPages} страниц`;
-    
-    notifications.showToast('Книга обновлена');
-  }
-
-  // Благодарность
-  async saveGratitude() {
-    const input = document.getElementById('gratitude-input');
-    const text = input.value.trim();
-    
-    if (!text) return;
-    
-    await db.saveGratitude(text);
-    input.value = '';
-    
-    await this.loadGratitudes();
-    await db.unlockAchievement('grateful');
-    notifications.showToast('Благодарность сохранена');
-  }
-
-  // Икигай
-  calculateIkigai() {
-    const inputs = document.querySelectorAll('.ikigai-input');
-    const answers = Array.from(inputs).map(i => i.value.trim());
-    
-    const resultEl = document.getElementById('ikigai-result');
-    const descEl = document.getElementById('ikigai-description');
-    
-    resultEl.style.display = 'block';
-    
-    // Простой анализ
-    const filled = answers.filter(a => a).length;
-    
-    if (filled < 4) {
-      descEl.textContent = 'Ответьте на все вопросы для получения результата';
-    } else {
-      const results = [
-        'Вы нашли своё призвание! Ваше любимое дело приносит пользу миру и доход.',
-        'Вы на пути к призванию. Продолжайте развиваться в выбранном направлении.',
-        'У вас есть потенциал. Попробуйте соединить любимое дело с потребностями рынка.',
-        'Исследуйте разные направления. Ваше призвание где-то рядом!'
-      ];
-      
-      descEl.textContent = results[Math.floor(Math.random() * results.length)];
-    }
-  }
-
-  // Контакты
-  async addContact() {
-    const name = document.getElementById('contact-name').value;
-    const theme = document.getElementById('contact-theme').value;
-    const contactInfo = document.getElementById('contact-info').value;
-    
-    if (!name || !contactInfo) {
-      notifications.showToast('Заполните все поля', 'warning');
-      return;
-    }
-    
-    await db.saveContact({ name, theme, contact_info: contactInfo });
-    
-    document.getElementById('contact-name').value = '';
-    document.getElementById('contact-info').value = '';
-    
-    await this.loadContacts();
-    notifications.showToast('Контакт добавлен');
-  }
-
-  async searchContacts(query) {
-    const contacts = await db.getContacts();
-    const filtered = contacts.filter(c => 
-      c.theme.toLowerCase().includes(query.toLowerCase()) ||
-      c.name.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    const container = document.getElementById('contacts-list');
-    container.innerHTML = filtered.map(c => `
-      <div class="contact-item">
-        <span class="contact-icon">👤</span>
-        <div class="contact-info">
-          <div class="contact-name">${c.name}</div>
-          <div class="contact-theme">${this.getThemeName(c.theme)}</div>
-          <div class="contact-data">${c.contact_info}</div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  // Бады
-  async addSupplement() {
-    const name = document.getElementById('supplement-name').value;
-    
-    if (!name) return;
-    
-    await db.saveSupplement(name);
-    document.getElementById('supplement-name').value = '';
-    
-    await this.loadSupplements();
-  }
-
-  // Карта
-  initMap() {
-    // Инициализация карты произойдёт при переходе на вкладку
-    document.querySelector('[data-tab="map"]').addEventListener('click', () => {
-      setTimeout(() => this.setupMap(), 100);
-    });
-  }
-
-  setupMap() {
-    if (this.map) return;
-    
-    this.map = L.map('map').setView([55.7558, 37.6173], 13); // Москва по умолчанию
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(this.map);
-    
-    // Получение геолокации
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          this.userLocation = { lat: latitude, lng: longitude };
-          this.map.setView([latitude, longitude], 15);
-          
-          L.marker([latitude, longitude])
-            .addTo(this.map)
-            .bindPopup('Вы здесь');
-          
-          document.getElementById('location-text').textContent = 
-            `Ш: ${latitude.toFixed(4)}, Д: ${longitude.toFixed(4)}`;
-        },
-        (error) => {
-          document.getElementById('location-text').textContent = 'Местоположение недоступно';
-        }
-      );
-    }
-  }
-
-  async startWalk() {
-    if (!this.userLocation) {
-      notifications.showToast('Определите местоположение', 'warning');
-      return;
-    }
-    
-    await db.saveWalk(this.userLocation);
-    
-    const walksList = document.getElementById('walks-list');
-    const walkItem = document.createElement('div');
-    walkItem.className = 'walk-item';
-    walkItem.innerHTML = `
-      <span>Прогулка</span>
-      <span>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</span>
-    `;
-    walksList.insertBefore(walkItem, walksList.firstChild);
-    
-    notifications.showToast('Прогулка началась! 🚶');
-  }
-
-  // Календарь жизни
-  initLifeCalendar() {
-    const grid = document.getElementById('life-grid');
-    if (!grid) return;
-    
-    const totalWeeks = 52 * 100; // 100 лет
-    const age = 25; // Пример возраст
-    const weeksLived = age * 52;
-    const percent = Math.round((weeksLived / totalWeeks) * 100);
-    
-    document.getElementById('weeks-lived').textContent = weeksLived;
-    document.getElementById('life-percent').textContent = `${percent}%`;
-    
-    let html = '';
-    for (let i = 0; i < totalWeeks; i++) {
-      const classes = ['life-week'];
-      if (i < weeksLived) classes.push('lived');
-      if (i >= weeksLived && i < weeksLived + 1) classes.push('current');
-      html += `<div class="${classes.join(' ')}"></div>`;
-    }
-    
-    grid.innerHTML = html;
-  }
-
-  // Утилиты
-  updateTimerDisplay(elementId, seconds, showMinutes = false) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    
-    if (showMinutes) {
-      element.querySelector('.timer-time').textContent = 
-        `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    } else {
-      element.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-  }
-
-  getThemeName(theme) {
-    const names = {
-      business: '💼 Бизнес',
-      science: '🔬 Наука',
-      art: '🎨 Искусство',
-      sport: '⚽ Спорт',
-      tech: '💻 Технологии',
-      health: '❤️ Здоровье',
-      learning: '📚 Обучение',
-      motivation: '💪 Мотивация'
-    };
-    return names[theme] || theme;
-  }
-
-  async sync() {
-    const btn = document.getElementById('syncBtn');
-    btn.classList.add('syncing');
-    
-    try {
-      await db.syncWithServer();
-      notifications.showToast('Синхронизация завершена');
-    } catch (e) {
-      notifications.showToast('Ошибка синхронизации', 'error');
-    }
-    
-    btn.classList.remove('syncing');
+function switchTab(tabName) {
+  appState.currentTab = tabName;
+  
+  // Обновляем навигацию
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.toggle('active', item.dataset.tab === tabName);
+  });
+  
+  // Обновляем контент
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.toggle('active', content.dataset.tab === tabName);
+  });
+  
+  // Перерисовываем календарь при переключении
+  if (tabName === 'calendar') {
+    initLifeCalendar();
   }
 }
 
-// Запуск приложения
-document.addEventListener('DOMContentLoaded', () => {
-  window.app = new App();
-});
+// Инициализация обработчиков
+function initEventListeners() {
+  // === ЗАДАЧИ ===
+  // Сохранение задач
+  document.getElementById('save-tasks-btn')?.addEventListener('click', saveTasks);
+  
+  // Чекбоксы задач
+  document.querySelectorAll('.daily-task-check').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const taskId = e.target.dataset.task;
+      const input = document.getElementById(`task-input-${taskId}`);
+      const taskData = {
+        id: `task_${new Date().toISOString().split('T')[0]}_${taskId}`,
+        text: input?.value || `Задача ${taskId}`,
+        completed: e.target.checked,
+        date: new Date().toISOString().split('T')[0]
+      };
+      db.put('daily_tasks', taskData);
+      updateHistory();
+    });
+  });
+  
+  // Книга
+  document.getElementById('add-10-pages')?.addEventListener('click', addPages);
+  
+  // Разминка
+  document.getElementById('start-exercise')?.addEventListener('click', toggleExerciseTimer);
+  document.getElementById('reset-exercise')?.addEventListener('click', resetExerciseTimer);
+  
+  // Вода
+  document.getElementById('add-water')?.addEventListener('click', addWater);
+  
+  // === ФОКУС ===
+  // Быстрые таймеры
+  document.querySelectorAll('.quick-timer-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const minutes = parseInt(btn.dataset.minutes);
+      setFocusTimer(minutes * 60);
+    });
+  });
+  
+  // Таймер фокуса
+  document.getElementById('start-focus')?.addEventListener('click', toggleFocusTimer);
+  document.getElementById('pause-focus')?.addEventListener('click', pauseFocusTimer);
+  document.getElementById('reset-focus')?.addEventListener('click', resetFocusTimer);
+  
+  // DND
+  document.getElementById('dnd-switch')?.addEventListener('change', toggleDND);
+  
+  // === ИЗУЧАТЬ ===
+  // Загрузка файла
+  document.getElementById('upload-file-btn')?.addEventListener('click', uploadFile);
+  
+  // Изучение слов
+  document.getElementById('learn-words-btn')?.addEventListener('click', learnWords);
+  
+  // === ПРОФИЛЬ ===
+  // Сохранение профиля
+  document.getElementById('save-profile-btn')?.addEventListener('click', saveProfile);
+  
+  // Благодарность
+  document.getElementById('save-gratitude')?.addEventListener('click', saveGratitude);
+  
+  // Бады
+  document.getElementById('add-supplement')?.addEventListener('click', addSupplement);
+  
+  // Синхронизация
+  document.getElementById('syncBtn')?.addEventListener('click', syncData);
+}
 
-export default App;
+// === ЗАДАЧИ ===
+function saveTasks() {
+  const tasks = [];
+  for (let i = 1; i <= 3; i++) {
+    const input = document.getElementById(`task-input-${i}`);
+    const checkbox = document.querySelector(`.daily-task-check[data-task="${i}"]`);
+    if (input && input.value.trim()) {
+      tasks.push({
+        id: `task_${new Date().toISOString().split('T')[0]}_${i}`,
+        text: input.value.trim(),
+        completed: checkbox?.checked || false,
+        date: new Date().toISOString().split('T')[0]
+      });
+    }
+  }
+  
+  tasks.forEach(task => db.put('daily_tasks', task));
+  updateHistory();
+  notifications.showToast('Задачи сохранены', 'success');
+}
+
+async function loadTasks() {
+  const today = new Date().toISOString().split('T')[0];
+  const tasks = await db.getByIndex('daily_tasks', 'date', today);
+  
+  tasks.forEach(task => {
+    const taskId = task.id.split('_').pop();
+    const input = document.getElementById(`task-input-${taskId}`);
+    const checkbox = document.querySelector(`.daily-task-check[data-task="${taskId}"]`);
+    if (input) input.value = task.text;
+    if (checkbox) checkbox.checked = task.completed;
+  });
+  
+  updateHistory();
+}
+
+async function updateHistory() {
+  const today = new Date().toISOString().split('T')[0];
+  const tasks = await db.getByIndex('daily_tasks', 'date', today);
+  const completedToday = tasks.filter(t => t.completed).length;
+  
+  // За неделю
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekTasks = await db.getAll('daily_tasks');
+  const completedWeek = weekTasks.filter(t => {
+    const taskDate = new Date(t.date);
+    return taskDate >= weekAgo && t.completed;
+  }).length;
+  
+  const total = tasks.length || 3;
+  const rate = Math.round((completedToday / total) * 100);
+  
+  document.getElementById('completed-today').textContent = completedToday;
+  document.getElementById('completed-week').textContent = completedWeek;
+  document.getElementById('completion-rate').textContent = `${rate}%`;
+  
+  // История по дням
+  const historyList = document.getElementById('history-list');
+  if (historyList) {
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      const dayTasks = await db.getByIndex('daily_tasks', 'date', dateStr);
+      const completed = dayTasks.filter(t => t.completed).length;
+      last7Days.push({ date: dateStr, completed, total: dayTasks.length || 3 });
+    }
+    
+    historyList.innerHTML = last7Days.map(day => `
+      <div class="history-item">
+        <span class="history-date">${formatDate(day.date)}</span>
+        <span class="history-completed">${day.completed}/${day.total}</span>
+      </div>
+    `).join('');
+  }
+}
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+  const options = { weekday: 'short', day: 'numeric' };
+  return date.toLocaleDateString('ru-RU', options);
+}
+
+function addPages() {
+  const bookTitle = document.getElementById('book-title').value || 'Текущая книга';
+  const pagesEl = document.getElementById('pages-today');
+  const current = parseInt(pagesEl.textContent) || 0;
+  pagesEl.textContent = current + 10;
+  notifications.showToast('+10 страниц', 'success');
+}
+
+function toggleExerciseTimer() {
+  const btn = document.getElementById('start-exercise');
+  
+  if (appState.exerciseIsRunning) {
+    pauseExerciseTimer();
+  } else {
+    appState.exerciseIsRunning = true;
+    btn.textContent = 'Пауза';
+    
+    appState.exerciseTimer = setInterval(() => {
+      appState.exerciseTime--;
+      updateTimerDisplay('exercise-timer', appState.exerciseTime);
+      
+      if (appState.exerciseTime <= 0) {
+        resetExerciseTimer();
+        notifications.showToast('Разминка завершена!', 'success');
+        notifications.playSound('complete');
+      }
+    }, 1000);
+  }
+}
+
+function pauseExerciseTimer() {
+  clearInterval(appState.exerciseTimer);
+  appState.exerciseIsRunning = false;
+  document.getElementById('start-exercise').textContent = 'Продолжить';
+}
+
+function resetExerciseTimer() {
+  clearInterval(appState.exerciseTimer);
+  appState.exerciseIsRunning = false;
+  appState.exerciseTime = 5 * 60;
+  updateTimerDisplay('exercise-timer', appState.exerciseTime);
+  document.getElementById('start-exercise').textContent = 'Старт';
+}
+
+function addWater() {
+  const waterCount = document.getElementById('water-count');
+  const waterLevel = document.getElementById('water-level');
+  const current = parseInt(waterCount.textContent.split('/')[0]) || 0;
+  const newCount = Math.min(current + 250, 500);
+  
+  waterCount.textContent = `${newCount}/500 мл`;
+  waterLevel.style.height = `${(newCount / 500) * 100}%`;
+  notifications.showToast('+250мл воды', 'success');
+}
+
+// === ФОКУС ===
+function setFocusTimer(seconds) {
+  pauseFocusTimer();
+  appState.focusTime = seconds;
+  updateTimerDisplay('focus-time', seconds);
+}
+
+function toggleFocusTimer() {
+  const btn = document.getElementById('start-focus');
+  
+  if (appState.focusIsRunning) {
+    pauseFocusTimer();
+  } else {
+    appState.focusIsRunning = true;
+    btn.textContent = 'Пауза';
+    
+    appState.focusTimer = setInterval(() => {
+      appState.focusTime--;
+      updateTimerDisplay('focus-time', appState.focusTime);
+      
+      if (appState.focusTime <= 0) {
+        completeFocusSession();
+      }
+    }, 1000);
+  }
+}
+
+function pauseFocusTimer() {
+  clearInterval(appState.focusTimer);
+  appState.focusIsRunning = false;
+  const btn = document.getElementById('start-focus');
+  if (btn) btn.textContent = 'Старт';
+}
+
+function resetFocusTimer() {
+  pauseFocusTimer();
+  appState.focusTime = 25 * 60;
+  updateTimerDisplay('focus-time', appState.focusTime);
+  document.getElementById('focus-mode').textContent = 'Фокус';
+}
+
+async function completeFocusSession() {
+  pauseFocusTimer();
+  appState.sessionsToday++;
+  document.getElementById('session-count').textContent = appState.sessionsToday;
+  
+  await db.saveFocusSession(25);
+  notifications.showToast('Сессия фокуса завершена!', 'success');
+  notifications.playSound('complete');
+  
+  appState.focusTime = 25 * 60;
+  updateTimerDisplay('focus-time', appState.focusTime);
+}
+
+function updateTimerDisplay(elementId, seconds) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  el.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function toggleDND(e) {
+  const statusEl = document.getElementById('dnd-status');
+  const timerEl = document.getElementById('dnd-timer');
+  
+  if (e.target.checked) {
+    statusEl.textContent = 'Включён';
+    timerEl.style.display = 'block';
+    
+    let remaining = 60 * 60; // 1 час по умолчанию
+    
+    appState.dndTimer = setInterval(() => {
+      remaining--;
+      const hours = Math.floor(remaining / 3600);
+      const mins = Math.floor((remaining % 3600) / 60);
+      const secs = remaining % 60;
+      document.getElementById('dnd-remaining').textContent =
+        `${hours.toString().padStart(2,'0')}:${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+      
+      if (remaining <= 0) {
+        clearInterval(appState.dndTimer);
+        document.getElementById('dnd-switch').checked = false;
+        statusEl.textContent = 'Выключен';
+        timerEl.style.display = 'none';
+      }
+    }, 1000);
+  } else {
+    statusEl.textContent = 'Выключен';
+    timerEl.style.display = 'none';
+    clearInterval(appState.dndTimer);
+  }
+}
+
+// === ИЗУЧАТЬ ===
+function uploadFile() {
+  const fileInput = document.getElementById('file-upload');
+  const fileInfo = document.getElementById('file-info');
+  const fileName = document.getElementById('file-name');
+  
+  if (fileInput.files && fileInput.files[0]) {
+    const file = fileInput.files[0];
+    appState.uploadedFile = file;
+    
+    fileInfo.style.display = 'block';
+    fileName.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    notifications.showToast('Файл загружен', 'success');
+  } else {
+    notifications.showToast('Выберите файл', 'warning');
+  }
+}
+
+async function learnWords() {
+  const container = document.getElementById('words-day-container');
+  
+  if (appState.wordsToday.length >= 5) {
+    container.innerHTML = '<p class="empty-state">Лимит слов на сегодня исчерпан</p>';
+    return;
+  }
+  
+  // Берём 5 случайных слов из разных категорий
+  const allWords = Object.values(WORD_DICTIONARIES).flat();
+  const shuffled = allWords.sort(() => 0.5 - Math.random());
+  const newWords = shuffled.slice(0, 5);
+  
+  appState.wordsToday = newWords;
+  
+  container.innerHTML = newWords.map((item, index) => `
+    <div class="word-card-day">
+      <span class="word-number">${index + 1}.</span>
+      <div class="word-info">
+        <span class="word-text">${item.word}</span>
+        <span class="word-translation">${item.translation}</span>
+      </div>
+    </div>
+  `).join('');
+  
+  // Сохраняем слова
+  for (const word of newWords) {
+    await db.saveWord({
+      word: word.word,
+      translation: word.translation,
+      theme: 'daily',
+      date: new Date().toISOString().split('T')[0]
+    });
+  }
+  
+  loadWords();
+  notifications.showToast('5 слов изучено!', 'success');
+}
+
+async function loadWords() {
+  const words = await db.getAll('words');
+  const container = document.getElementById('words-history');
+  
+  if (container && words.length > 0) {
+    container.innerHTML = words.slice(-20).reverse().map(w => `
+      <div class="word-history-item">
+        <span class="word-history-word">${w.word}</span>
+        <span class="word-history-translation">${w.translation}</span>
+      </div>
+    `).join('');
+  }
+}
+
+// === КАЛЕНДАРЬ ЖИЗНИ ===
+function initLifeCalendar() {
+  const grid = document.getElementById('life-grid');
+  if (!grid) return;
+  
+  // Дата рождения (примерная - 25 лет назад)
+  const birthDate = new Date();
+  birthDate.setFullYear(birthDate.getFullYear() - 25);
+  
+  const now = new Date();
+  const weeksInLife = Math.floor((now - birthDate) / (7 * 24 * 60 * 60 * 1000));
+  const totalWeeks = 4000;
+  
+  document.getElementById('weeks-lived').textContent = weeksInLife;
+  document.getElementById('life-percent').textContent = Math.round((weeksInLife / totalWeeks) * 100) + '%';
+  document.getElementById('age-value').textContent = Math.floor((now - birthDate) / (365.25 * 24 * 60 * 60 * 1000)) + ' лет';
+  document.getElementById('weeks-value').textContent = weeksInLife;
+  document.getElementById('weeks-left').textContent = totalWeeks - weeksInLife;
+  
+  // Генерация сетки (показываем по 52 недели в строке = 1 год)
+  grid.innerHTML = '';
+  for (let i = 0; i < totalWeeks; i++) {
+    const week = document.createElement('div');
+    week.className = 'life-week';
+    
+    if (i < weeksInLife) {
+      week.classList.add('lived');
+    } else if (i === weeksInLife) {
+      week.classList.add('current');
+    }
+    
+    grid.appendChild(week);
+  }
+}
+
+// === ПРОФИЛЬ ===
+async function loadProfile() {
+  const profile = await db.get('users', 'current') || { name: '', email: 'user@example.com' };
+  
+  document.getElementById('profile-name').value = profile.name || '';
+  document.getElementById('profile-email').textContent = profile.email;
+  
+  // Статистика
+  const tasks = await db.getAll('daily_tasks');
+  const words = await db.getAll('words');
+  const focus = await db.getAll('focus_sessions');
+  
+  document.getElementById('total-tasks').textContent = tasks.filter(t => t.completed).length;
+  document.getElementById('total-words').textContent = words.length;
+  document.getElementById('focus-minutes').textContent = focus.reduce((sum, s) => sum + (s.duration || 0), 0);
+}
+
+function saveProfile() {
+  const name = document.getElementById('profile-name').value.trim();
+  const email = document.getElementById('profile-email').textContent;
+  
+  db.put('users', { id: 'current', name, email });
+  notifications.showToast('Профиль сохранён', 'success');
+}
+
+async function saveGratitude() {
+  const input = document.getElementById('gratitude-input');
+  const text = input.value.trim();
+  
+  if (!text) return;
+  
+  await db.saveGratitude(text);
+  input.value = '';
+  loadGratitudes();
+  notifications.showToast('Благодарность сохранена', 'success');
+}
+
+async function loadGratitudes() {
+  const gratitudes = await db.getGratitudes();
+  const container = document.getElementById('today-gratitudes');
+  
+  if (container) {
+    container.innerHTML = gratitudes.map(g => `<div class="gratitude-item">${g.text}</div>`).join('');
+  }
+}
+
+async function addSupplement() {
+  const input = document.getElementById('supplement-name');
+  const name = input.value.trim();
+  
+  if (!name) return;
+  
+  await db.saveSupplement(name);
+  input.value = '';
+  loadSupplements();
+  notifications.showToast('Добавка добавлена', 'success');
+}
+
+async function loadSupplements() {
+  const supplements = await db.getSupplements();
+  const tbody = document.getElementById('supplements-body');
+  
+  if (tbody) {
+    tbody.innerHTML = supplements.map(s => `
+      <tr>
+        <td>${s.name}</td>
+        <td>
+          <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
+        </td>
+      </tr>
+    `).join('');
+    
+    tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
+      checkbox.addEventListener('change', async () => {
+        await db.toggleSupplement(checkbox.dataset.id);
+      });
+    });
+  }
+}
+
+async function loadAchievements() {
+  const achievements = await db.getAchievements();
+  const unlockedTypes = achievements.map(a => a.achievement_type);
+  
+  document.querySelectorAll('.achievement').forEach(el => {
+    const type = el.dataset.achievement;
+    if (unlockedTypes.includes(type)) {
+      el.classList.add('unlocked');
+    }
+  });
+}
+
+async function syncData() {
+  const btn = document.getElementById('syncBtn');
+  btn.classList.add('syncing');
+  
+  await db.syncWithServer();
+  
+  setTimeout(() => {
+    btn.classList.remove('syncing');
+    notifications.showToast('Данные синхронизированы', 'success');
+  }, 1000);
+}
