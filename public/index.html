@@ -39,8 +39,65 @@
 
     <!-- Контент вкладок -->
     <main class="content">
+      <!-- Календарь жизни -->
+      <section id="tab-calendar" class="tab-content active" data-tab="calendar">
+        <div class="calendar-page">
+          <h2>📅 Календарь жизни</h2>
+
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🎂</span>
+              <h3>Дата рождения</h3>
+            </div>
+            <div class="task-body">
+              <input type="date" id="birth-date-input" class="input-field">
+              <button class="btn btn-primary btn-full" id="save-birth-date">Применить</button>
+            </div>
+          </div>
+
+          <div class="task-card">
+            <div class="task-body">
+              <div class="life-calendar">
+                <div class="life-stats">
+                  <span id="weeks-lived">0</span> / <span id="total-weeks">4160</span> недель
+                  <span id="life-percent">0%</span> жизни
+                </div>
+                <div class="life-grid" id="life-grid"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">📊</span>
+              <h3>Информация</h3>
+            </div>
+            <div class="task-body">
+              <div class="life-info">
+                <div class="info-item">
+                  <span class="info-label">Возраст:</span>
+                  <span class="info-value" id="age-value">0 лет</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Прожито недель:</span>
+                  <span class="info-value" id="weeks-value">0</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Осталось недель:</span>
+                  <span class="info-value" id="weeks-left">0</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Дата рождения:</span>
+                  <span class="info-value" id="birth-date-display">Не указана</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Задачи -->
-      <section id="tab-tasks" class="tab-content active" data-tab="tasks">
+      <section id="tab-tasks" class="tab-content" data-tab="tasks">
         <div class="tasks-page">
           <h2>📋 Задачи</h2>
           
@@ -318,58 +375,43 @@
         </div>
       </section>
 
-      <!-- Календарь жизни -->
-      <section id="tab-calendar" class="tab-content" data-tab="calendar">
-        <div class="calendar-page">
-          <h2>📅 Календарь жизни</h2>
+      <!-- Контакты -->
+      <section id="tab-contacts" class="tab-content" data-tab="contacts">
+        <div class="contacts-page">
+          <h2>👥 Контакты</h2>
 
           <div class="task-card">
             <div class="task-header">
-              <span class="task-icon">🎂</span>
-              <h3>Дата рождения</h3>
+              <span class="task-icon">➕</span>
+              <h3>Добавить контакт</h3>
             </div>
             <div class="task-body">
-              <input type="date" id="birth-date-input" class="input-field">
-              <button class="btn btn-primary btn-full" id="save-birth-date">Применить</button>
-            </div>
-          </div>
-
-          <div class="task-card">
-            <div class="task-body">
-              <div class="life-calendar">
-                <div class="life-stats">
-                  <span id="weeks-lived">0</span> / <span id="total-weeks">4160</span> недель
-                  <span id="life-percent">0%</span> жизни
+              <button class="btn btn-primary btn-full" id="add-contact-btn">+ Новый контакт</button>
+              
+              <div class="contact-form" id="contact-form" style="display: none;">
+                <input type="text" id="contact-fio" class="input-field" placeholder="ФИО">
+                <input type="tel" id="contact-phone" class="input-field" placeholder="Телефон">
+                <input type="text" id="contact-org" class="input-field" placeholder="Организация">
+                <input type="text" id="contact-job" class="input-field" placeholder="Должность/Работа">
+                <input type="text" id="contact-location" class="input-field" placeholder="Геолокация (адрес)">
+                <textarea id="contact-note" class="textarea-field" placeholder="Заметка"></textarea>
+                <input type="text" id="contact-extra" class="input-field" placeholder="Дополнительно">
+                <div class="form-actions">
+                  <button class="btn btn-primary" id="save-contact-btn">Сохранить</button>
+                  <button class="btn btn-outline" id="cancel-contact-btn">Отмена</button>
                 </div>
-                <div class="life-grid" id="life-grid"></div>
               </div>
             </div>
           </div>
 
           <div class="task-card">
             <div class="task-header">
-              <span class="task-icon">📊</span>
-              <h3>Информация</h3>
+              <span class="task-icon">📇</span>
+              <h3>Все контакты</h3>
             </div>
             <div class="task-body">
-              <div class="life-info">
-                <div class="info-item">
-                  <span class="info-label">Возраст:</span>
-                  <span class="info-value" id="age-value">0 лет</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Прожито недель:</span>
-                  <span class="info-value" id="weeks-value">0</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Осталось недель:</span>
-                  <span class="info-value" id="weeks-left">0</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">Дата рождения:</span>
-                  <span class="info-value" id="birth-date-display">Не указана</span>
-                </div>
-              </div>
+              <input type="text" id="contact-search" class="input-field" placeholder="Поиск контактов...">
+              <div class="contacts-list" id="contacts-list"></div>
             </div>
           </div>
         </div>
@@ -546,6 +588,10 @@
             <div class="task-body">
               <textarea id="gratitude-input" class="textarea-field" placeholder="За что вы благодарны сегодня?"></textarea>
               <button class="btn btn-primary btn-full" id="save-gratitude">Сохранить</button>
+              
+              <!-- Календарь благодарностей -->
+              <div class="gratitude-calendar" id="gratitude-calendar"></div>
+              
               <div class="gratitude-list" id="gratitude-today">
                 <h4>Сегодня:</h4>
                 <div id="today-gratitudes"></div>
@@ -558,7 +604,11 @@
 
     <!-- Нижняя навигация -->
     <nav class="bottom-nav">
-      <button class="nav-item active" data-tab="tasks">
+      <button class="nav-item active" data-tab="calendar">
+        <span class="nav-icon">📅</span>
+        <span class="nav-label">Календарь</span>
+      </button>
+      <button class="nav-item" data-tab="tasks">
         <span class="nav-icon">📋</span>
         <span class="nav-label">Задачи</span>
       </button>
@@ -570,9 +620,9 @@
         <span class="nav-icon">📚</span>
         <span class="nav-label">Изучать</span>
       </button>
-      <button class="nav-item" data-tab="calendar">
-        <span class="nav-icon">📅</span>
-        <span class="nav-label">Календарь</span>
+      <button class="nav-item" data-tab="contacts">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Контакты</span>
       </button>
       <button class="nav-item" data-tab="profile">
         <span class="nav-icon">👤</span>
@@ -581,7 +631,7 @@
     </nav>
   </div>
 
-  <!-- Модальное окно для просмотра задач дня -->
+  <!-- Модальные окна -->
   <div class="modal" id="day-tasks-modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -589,6 +639,16 @@
         <button class="modal-close" id="modal-close-btn">&times;</button>
       </div>
       <div class="modal-body" id="modal-tasks-list"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="contact-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="contact-modal-title">Контакт</h3>
+        <button class="modal-close" id="contact-modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="contact-modal-body"></div>
     </div>
   </div>
 

@@ -1,6 +1,6 @@
 // db.js - Работа с локальной базой данных (IndexedDB) и синхронизация
 const DB_NAME = 'life-balance-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAMES = {
   USERS: 'users',
   DAILY_TASKS: 'daily_tasks',
@@ -298,16 +298,28 @@ class Database {
   // Контакты
   async saveContact(contact) {
     contact.id = contact.id || `contact_${Date.now()}`;
+    contact.created_at = contact.created_at || new Date().toISOString();
     await this.put(STORE_NAMES.CONTACTS, contact);
-    this.queueForSync('contacts', contact);
     return contact;
   }
 
-  async getContacts(theme = null) {
-    if (theme) {
-      return this.getByIndex(STORE_NAMES.CONTACTS, 'theme', theme);
-    }
+  async getContacts() {
     return this.getAll(STORE_NAMES.CONTACTS);
+  }
+
+  async deleteContact(id) {
+    return this.delete(STORE_NAMES.CONTACTS, id);
+  }
+
+  async searchContacts(query) {
+    const contacts = await this.getAll(STORE_NAMES.CONTACTS);
+    if (!query) return contacts;
+    const q = query.toLowerCase();
+    return contacts.filter(c => 
+      (c.fio && c.fio.toLowerCase().includes(q)) ||
+      (c.phone && c.phone.includes(q)) ||
+      (c.organization && c.organization.toLowerCase().includes(q))
+    );
   }
 
   // Достижения

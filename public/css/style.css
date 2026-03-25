@@ -2194,6 +2194,143 @@ body {
   color: var(--text-muted);
 }
 
+/* Gratitude Calendar */
+.gratitude-calendar {
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.gratitude-calendar h4 {
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+
+.gratitude-calendar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.gratitude-calendar-day {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+}
+
+.gratitude-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.gratitude-count {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.gratitude-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Contacts */
+.contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.contact-item:hover {
+  background: var(--bg-elevated);
+}
+
+.contact-avatar {
+  width: 48px;
+  height: 48px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.contact-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.contact-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.contact-phone, .contact-org {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.contact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.detail-value {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.modal-actions {
+  margin-top: 16px;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
 /* Responsive */
 @media (min-width: 768px) {
   .content {
@@ -2226,5 +2363,13 @@ body {
   
   .time-field-sm, .days-field-sm {
     width: 100%;
+  }
+  
+  .bottom-nav {
+    padding: 0 2px;
+  }
+  
+  .nav-label {
+    font-size: 9px;
   }
 }

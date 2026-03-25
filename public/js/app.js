@@ -129,11 +129,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadTasks();
   await loadTasksCalendar();
   await loadGratitudes();
+  await loadGratitudeCalendar();
   await loadSupplements();
   await loadWords();
   await loadPrinciples();
   await loadAchievements();
   await loadBooks();
+  await loadContacts();
   await initLifeCalendar();
   notifications.scheduleWaterReminder();
 });
@@ -288,6 +290,35 @@ function initEventListeners() {
   document.getElementById('save-gratitude')?.addEventListener('click', saveGratitude);
   document.getElementById('add-supplement')?.addEventListener('click', addSupplement);
   document.getElementById('syncBtn')?.addEventListener('click', syncData);
+  
+  // === КОНТАКТЫ ===
+  document.getElementById('add-contact-btn')?.addEventListener('click', () => {
+    document.getElementById('contact-form').style.display = 'block';
+  });
+  
+  document.getElementById('save-contact-btn')?.addEventListener('click', saveContact);
+  document.getElementById('cancel-contact-btn')?.addEventListener('click', () => {
+    document.getElementById('contact-form').style.display = 'none';
+  });
+  
+  document.getElementById('contact-search')?.addEventListener('input', searchContacts);
+  
+  // Модальные окна
+  document.getElementById('modal-close-btn')?.addEventListener('click', () => {
+    document.getElementById('day-tasks-modal').style.display = 'none';
+  });
+  
+  document.getElementById('contact-modal-close')?.addEventListener('click', () => {
+    document.getElementById('contact-modal').style.display = 'none';
+  });
+  
+  document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+  });
 }
 
 // === СЕРИЯ ЗАХОДОВ ===
@@ -1136,27 +1167,222 @@ window.deleteSupplement = async function(id) {
 async function saveGratitude() {
   const input = document.getElementById('gratitude-input');
   const text = input.value.trim();
-  
+
   if (!text) {
     notifications.showToast('Введите текст благодарности', 'warning');
     return;
   }
+
+  const gratitude = {
+    id: `gratitude_${Date.now()}`,
+    text,
+    date: new Date().toISOString().split('T')[0],
+    created_at: new Date().toISOString()
+  };
   
-  await db.saveGratitude(text);
+  await db.add('gratitude', gratitude);
   input.value = '';
   await loadGratitudes();
+  await loadGratitudeCalendar();
   await checkAchievements();
   notifications.showToast('Благодарность сохранена', 'success');
 }
 
 async function loadGratitudes() {
-  const gratitudes = await db.getGratitudes() || [];
-  const container = document.getElementById('today-gratitudes');
+  const today = new Date().toISOString().split('T')[0];
+  const allGratitudes = await db.getAll('gratitude') || [];
+  const todayGratitudes = allGratitudes.filter(g => g.date === today);
   
+  const container = document.getElementById('today-gratitudes');
   if (container) {
-    container.innerHTML = gratitudes.map(g => `<div class="gratitude-item">${g.text}</div>`).join('');
+    if (todayGratitudes.length === 0) {
+      container.innerHTML = '<p class="empty-state">Пока нет записей</p>';
+    } else {
+      container.innerHTML = todayGratitudes.map(g => `
+        <div class="gratitude-item">
+          <span>${g.text}</span>
+          <button class="btn-delete-sm" onclick="deleteGratitude('${g.id}')">&times;</button>
+        </div>
+      `).join('');
+    }
   }
 }
+
+async function loadGratitudeCalendar() {
+  const calendar = document.getElementById('gratitude-calendar');
+  if (!calendar) return;
+  
+  const allGratitudes = await db.getAll('gratitude') || [];
+  
+  // Группируем по датам
+  const byDate = {};
+  allGratitudes.forEach(g => {
+    if (!byDate[g.date]) byDate[g.date] = [];
+    byDate[g.date].push(g);
+  });
+  
+  // Последние 30 дней
+  const dates = Object.keys(byDate).sort().reverse().slice(0, 30);
+  
+  if (dates.length === 0) {
+    calendar.innerHTML = '<p class="empty-state">Нет записей</p>';
+    return;
+  }
+  
+  calendar.innerHTML = `
+    <h4>История благодарностей</h4>
+    <div class="gratitude-calendar-list">
+      ${dates.map(date => `
+        <div class="gratitude-calendar-day">
+          <span class="gratitude-date">${formatDateFull(date)}</span>
+          <span class="gratitude-count">${byDate[date].length} зап.</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+window.deleteGratitude = async function(id) {
+  await db.delete('gratitude', id);
+  await loadGratitudes();
+  await loadGratitudeCalendar();
+  notifications.showToast('Запись удалена', 'success');
+};
+
+// === КОНТАКТЫ ===
+async function loadContacts() {
+  const contacts = await db.getContacts() || [];
+  const list = document.getElementById('contacts-list');
+  
+  if (!list) return;
+  
+  if (contacts.length === 0) {
+    list.innerHTML = '<p class="empty-state">Нет контактов</p>';
+    return;
+  }
+  
+  list.innerHTML = contacts.map(c => `
+    <div class="contact-item" onclick="openContactModal('${c.id}')">
+      <div class="contact-avatar">${(c.fio || 'C')[0].toUpperCase()}</div>
+      <div class="contact-info">
+        <span class="contact-name">${c.fio || 'Без имени'}</span>
+        <span class="contact-phone">${c.phone || ''}</span>
+        <span class="contact-org">${c.organization || ''}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveContact() {
+  const fio = document.getElementById('contact-fio').value.trim();
+  const phone = document.getElementById('contact-phone').value.trim();
+  const org = document.getElementById('contact-org').value.trim();
+  const job = document.getElementById('contact-job').value.trim();
+  const location = document.getElementById('contact-location').value.trim();
+  const note = document.getElementById('contact-note').value.trim();
+  const extra = document.getElementById('contact-extra').value.trim();
+  
+  if (!fio && !phone) {
+    notifications.showToast('Введите ФИО или телефон', 'warning');
+    return;
+  }
+  
+  const contact = { fio, phone, organization: org, job, location, note, extra };
+  await db.saveContact(contact);
+  
+  // Очистка формы
+  document.getElementById('contact-fio').value = '';
+  document.getElementById('contact-phone').value = '';
+  document.getElementById('contact-org').value = '';
+  document.getElementById('contact-job').value = '';
+  document.getElementById('contact-location').value = '';
+  document.getElementById('contact-note').value = '';
+  document.getElementById('contact-extra').value = '';
+  document.getElementById('contact-form').style.display = 'none';
+  
+  await loadContacts();
+  notifications.showToast('Контакт сохранён', 'success');
+}
+
+async function searchContacts() {
+  const query = document.getElementById('contact-search').value;
+  const contacts = await db.searchContacts(query);
+  
+  const list = document.getElementById('contacts-list');
+  if (!list) return;
+  
+  if (contacts.length === 0) {
+    list.innerHTML = '<p class="empty-state">Ничего не найдено</p>';
+    return;
+  }
+  
+  list.innerHTML = contacts.map(c => `
+    <div class="contact-item" onclick="openContactModal('${c.id}')">
+      <div class="contact-avatar">${(c.fio || 'C')[0].toUpperCase()}</div>
+      <div class="contact-info">
+        <span class="contact-name">${c.fio || 'Без имени'}</span>
+        <span class="contact-phone">${c.phone || ''}</span>
+        <span class="contact-org">${c.organization || ''}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.openContactModal = async function(id) {
+  const contacts = await db.getContacts();
+  const contact = contacts.find(c => c.id === id);
+  if (!contact) return;
+  
+  const modal = document.getElementById('contact-modal');
+  const title = document.getElementById('contact-modal-title');
+  const body = document.getElementById('contact-modal-body');
+  
+  title.textContent = contact.fio || 'Контакт';
+  body.innerHTML = `
+    <div class="contact-details">
+      <div class="detail-row">
+        <span class="detail-label">👤 ФИО:</span>
+        <span class="detail-value">${contact.fio || '-'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">📞 Телефон:</span>
+        <span class="detail-value">${contact.phone || '-'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">🏢 Организация:</span>
+        <span class="detail-value">${contact.organization || '-'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">💼 Должность:</span>
+        <span class="detail-value">${contact.job || '-'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">📍 Геолокация:</span>
+        <span class="detail-value">${contact.location || '-'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">📝 Заметка:</span>
+        <span class="detail-value">${contact.note || '-'}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">📌 Дополнительно:</span>
+        <span class="detail-value">${contact.extra || '-'}</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-full" onclick="deleteContact('${contact.id}')">Удалить</button>
+    </div>
+  `;
+  
+  modal.style.display = 'flex';
+};
+
+window.deleteContact = async function(id) {
+  await db.deleteContact(id);
+  document.getElementById('contact-modal').style.display = 'none';
+  await loadContacts();
+  notifications.showToast('Контакт удалён', 'success');
+};
 
 // === СИНХРОНИЗАЦИЯ ===
 async function syncData() {
