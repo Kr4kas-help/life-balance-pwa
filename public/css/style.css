@@ -2401,7 +2401,7 @@ body {
 .water-sections {
   display: flex;
   justify-content: space-around;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -2415,34 +2415,91 @@ body {
 .water-label {
   font-size: 12px;
   color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Mini Glass */
+.mini-glass {
+  width: 50px;
+  height: 80px;
+  background: var(--bg-elevated);
+  border: 2px solid var(--border-light);
+  border-radius: 0 0 8px 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.mini-glass-level {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0%;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  transition: height 0.3s ease;
+}
+
+.mini-glass-count {
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .btn-water-sm {
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: var(--accent);
   border: none;
   border-radius: var(--radius-sm);
   color: white;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: all var(--transition-fast);
+  min-width: 60px;
 }
 
 .btn-water-sm:active {
   background: var(--accent-hover);
+  transform: scale(0.95);
+}
+
+.btn-water-sm:disabled {
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
 }
 
 .water-summary {
   margin-top: 12px;
-  padding: 8px;
+  padding: 12px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
+  border-radius: var(--radius-md);
+}
+
+.water-summary span {
+  font-size: 13px;
   color: var(--text-secondary);
+  display: block;
+  margin-bottom: 8px;
 }
 
 .water-summary b {
   color: var(--accent);
+  font-size: 15px;
+}
+
+.water-total-progress {
+  height: 6px;
+  background: var(--bg-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.water-total-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  width: 0%;
 }
 
 /* Word Checkbox */

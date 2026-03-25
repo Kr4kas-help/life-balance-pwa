@@ -854,7 +854,7 @@ function resetExerciseTimer() {
   document.getElementById('start-exercise').textContent = 'Старт';
 }
 
-// Вода с разделением на утро/день/вечер
+// Вода с разделением на утро/день/вечер - 1500мл всего (500мл на период, 2 клика по 250мл)
 const waterState = {
   morning: 0,
   day: 0,
@@ -870,24 +870,58 @@ async function loadWaterProgress() {
   waterState.evening = logs.filter(l => l.period === 'evening').reduce((sum, l) => sum + l.amount, 0);
   
   const total = waterState.morning + waterState.day + waterState.evening;
-  const goal = 500;
-  const percent = Math.min((total / goal) * 100, 100);
+  const goal = 1500;
   
-  const waterLevel = document.getElementById('water-level');
+  // Обновляем стаканы для каждого периода
+  updateWaterGlass('morning', waterState.morning, 500);
+  updateWaterGlass('day', waterState.day, 500);
+  updateWaterGlass('evening', waterState.evening, 500);
+  
+  // Обновляем summary
   const waterCount = document.getElementById('water-count');
-  const waterMorning = document.getElementById('water-morning');
-  const waterDay = document.getElementById('water-day');
-  const waterEvening = document.getElementById('water-evening');
+  const waterTotalBar = document.getElementById('water-total-bar');
   
-  if (waterLevel) waterLevel.style.height = `${percent}%`;
   if (waterCount) waterCount.textContent = `${total}/${goal} мл`;
-  if (waterMorning) waterMorning.textContent = waterState.morning;
-  if (waterDay) waterDay.textContent = waterState.day;
-  if (waterEvening) waterEvening.textContent = waterState.evening;
+  
+  // Обновляем общий прогресс бар
+  if (waterTotalBar) {
+    const percent = Math.min((total / goal) * 100, 100);
+    waterTotalBar.style.width = `${percent}%`;
+  }
+}
+
+function updateWaterGlass(period, current, max) {
+  const level = document.getElementById(`water-level-${period}`);
+  const count = document.getElementById(`water-count-${period}`);
+  const btn = document.getElementById(`add-water-${period}`);
+  
+  const percent = Math.min((current / max) * 100, 100);
+  
+  if (level) level.style.height = `${percent}%`;
+  if (count) count.textContent = `${current}/${max} мл`;
+  
+  // Блокируем кнопку если достигнут лимит (2 клика = 500мл)
+  if (btn) {
+    if (current >= max) {
+      btn.disabled = true;
+      btn.textContent = '✓';
+    } else {
+      btn.disabled = false;
+      btn.textContent = '+250мл';
+    }
+  }
 }
 
 async function addWater(period) {
   const amount = 250;
+  const maxPerPeriod = 500;
+  
+  // Проверяем лимит
+  if (waterState[period] >= maxPerPeriod) {
+    notifications.showToast('Лимит на этот период достигнут!', 'warning');
+    return;
+  }
+  
   const log = {
     id: `water_${Date.now()}`,
     amount,
@@ -899,8 +933,8 @@ async function addWater(period) {
   await db.add('water_log', log);
   await loadWaterProgress();
   
-  const labels = { morning: 'Утро', day: 'День', evening: 'Вечер' };
-  notifications.showToast(`+${amount}мл (${labels[period]})`, 'success');
+  const labels = { morning: '🌅 Утро', day: '☀️ День', evening: '🌙 Вечер' };
+  notifications.showToast(`${labels[period]} +${amount}мл`, 'success');
 }
 
 // === ФОКУС ===
@@ -1024,22 +1058,23 @@ async function learnWords() {
   
   // Получаем уже изученные слова сегодня
   const today = new Date().toISOString().split('T')[0];
-  const allWords = await db.getAll('words') || [];
-  const todayLearned = allWords.filter(w => w.date === today && w.learned);
+  const allWords = await db.getAll('words_learned') || [];
+  const todayLearned = allWords.filter(w => w.date === today);
   
-  if (todayLearned.length >= 5) {
+  const learnedCount = todayLearned.length;
+  
+  // Обновляем прогресс при загрузке
+  if (progressContainer) {
+    progressContainer.style.display = 'block';
+    updateWordsProgress(learnedCount, 5);
+  }
+  
+  if (learnedCount >= 5) {
     container.innerHTML = '<p class="empty-state">Лимит слов на сегодня исчерпан</p>';
-    if (progressContainer) progressContainer.style.display = 'none';
     return;
   }
   
-  // Показываем прогресс бар
-  if (progressContainer) {
-    progressContainer.style.display = 'block';
-    updateWordsProgress(todayLearned.length, 5);
-  }
-  
-  // Получаем все слова и фильтруем уже изученные
+  // Получаем все слова из словарей
   const allDictionaryWords = Object.values(WORD_DICTIONARIES).flat();
   const learnedWordsToday = todayLearned.map(w => w.word);
   const availableWords = allDictionaryWords.filter(w => !learnedWordsToday.includes(w.word));
@@ -1049,9 +1084,10 @@ async function learnWords() {
     return;
   }
   
-  // Берём 5 случайных слов из доступных
+  // Берём 5 случайных слов из доступных (или меньше если осталось)
+  const remaining = 5 - learnedCount;
   const shuffled = availableWords.sort(() => 0.5 - Math.random());
-  const newWords = shuffled.slice(0, 5);
+  const newWords = shuffled.slice(0, remaining);
   
   appState.wordsToday = newWords.map(w => ({ ...w, learned: false }));
   
@@ -1080,7 +1116,7 @@ async function learnWords() {
         
         // Сохраняем слово в базу
         const wordData = {
-          id: `word_${Date.now()}_${index}`,
+          id: `word_${Date.now()}_${Math.random()}`,
           word: word.word,
           translation: word.translation,
           theme: 'daily',
@@ -1088,15 +1124,20 @@ async function learnWords() {
           learned: true
         };
         
-        await db.add('words', wordData);
+        await db.add('words_learned', wordData);
         
         // Обновляем прогресс
-        const learnedCount = todayLearned.length + container.querySelectorAll('.word-check:checked').length;
-        updateWordsProgress(learnedCount, 5);
+        const newLearnedCount = learnedCount + container.querySelectorAll('.word-check:checked').length;
+        updateWordsProgress(newLearnedCount, 5);
         
         await loadWords();
         await checkAchievements();
         notifications.showToast('Слово добавлено в историю!', 'success');
+        
+        // Если достигли лимита - обновляем UI
+        if (newLearnedCount >= 5) {
+          setTimeout(() => learnWords(), 500);
+        }
       }
     });
   });
@@ -1110,12 +1151,16 @@ function updateWordsProgress(current, total) {
   
   if (!progressBar || !progressText) return;
   
-  const percent = (current / total) * 100;
+  const percent = Math.min((current / total) * 100, 100);
   progressBar.style.width = `${percent}%`;
   
   // Градиент от красного к зеленому
-  const hue = (percent / 100) * 120; // 0 = красный, 120 = зеленый
-  progressBar.style.background = `linear-gradient(90deg, hsl(0, 70%, 50%) ${percent}%, hsl(${hue}, 70%, 50%) ${percent}%)`;
+  const hue = (percent / 100) * 120;
+  progressBar.style.background = `linear-gradient(90deg, 
+    hsl(0, 70%, 50%) 0%, 
+    hsl(${hue * 0.5}, 70%, 50%) ${percent * 0.5}%, 
+    hsl(${hue}, 70%, 50%) ${percent}%,
+    hsl(${hue}, 70%, 50%) 100%)`;
   
   progressText.textContent = `${current}/${total} слов`;
 }

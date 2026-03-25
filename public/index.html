@@ -213,33 +213,40 @@
           <div class="task-card">
             <div class="task-header">
               <span class="task-icon">💧</span>
-              <h3>0.5л воды</h3>
+              <h3>1.5л воды в день</h3>
             </div>
             <div class="task-body">
               <div class="water-sections">
                 <div class="water-section">
                   <span class="water-label">🌅 Утро</span>
+                  <div class="mini-glass">
+                    <div class="mini-glass-level" id="water-level-morning"></div>
+                  </div>
+                  <span class="mini-glass-count" id="water-count-morning">0/500 мл</span>
                   <button class="btn btn-water-sm" id="add-water-morning">+250мл</button>
                 </div>
                 <div class="water-section">
                   <span class="water-label">☀️ День</span>
+                  <div class="mini-glass">
+                    <div class="mini-glass-level" id="water-level-day"></div>
+                  </div>
+                  <span class="mini-glass-count" id="water-count-day">0/500 мл</span>
                   <button class="btn btn-water-sm" id="add-water-day">+250мл</button>
                 </div>
                 <div class="water-section">
                   <span class="water-label">🌙 Вечер</span>
+                  <div class="mini-glass">
+                    <div class="mini-glass-level" id="water-level-evening"></div>
+                  </div>
+                  <span class="mini-glass-count" id="water-count-evening">0/500 мл</span>
                   <button class="btn btn-water-sm" id="add-water-evening">+250мл</button>
                 </div>
               </div>
-              <div class="water-glass">
-                <div class="glass-container">
-                  <div class="glass" id="water-glass">
-                    <div class="water-level" id="water-level"></div>
-                  </div>
-                  <span class="glass-label" id="water-count">0/500 мл</span>
-                </div>
-              </div>
               <div class="water-summary" id="water-summary">
-                <span>Утро: <b id="water-morning">0</b>мл | День: <b id="water-day">0</b>мл | Вечер: <b id="water-evening">0</b>мл</span>
+                <span>Всего: <b id="water-count">0/1500 мл</b></span>
+                <div class="water-total-progress">
+                  <div class="water-total-bar" id="water-total-bar"></div>
+                </div>
               </div>
             </div>
           </div>
