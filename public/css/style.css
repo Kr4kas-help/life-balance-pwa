@@ -2484,10 +2484,83 @@ body {
   color: var(--text-muted);
 }
 
+/* Words Progress */
+.words-progress-container {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.words-progress-bar-container {
+  height: 8px;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.words-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, hsl(0, 70%, 50%), hsl(120, 70%, 50%));
+  border-radius: 4px;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.words-progress-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: block;
+  text-align: center;
+}
+
+/* Modal Header Actions */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.modal-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.modal-edit-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .contact-details {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.contact-detail-photo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.contact-detail-photo img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--accent);
 }
 
 .detail-row {

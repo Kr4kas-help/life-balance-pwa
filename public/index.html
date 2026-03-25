@@ -354,6 +354,12 @@
               <h3>5 слов сегодня</h3>
             </div>
             <div class="task-body">
+              <div class="words-progress-container" id="words-progress-container" style="display: none;">
+                <div class="words-progress-bar-container">
+                  <div class="words-progress-bar" id="words-progress-bar" style="width: 0%"></div>
+                </div>
+                <span class="words-progress-text" id="words-progress-text">0/5 слов</span>
+              </div>
               <div class="words-day-container" id="words-day-container">
                 <p class="empty-state">Нажмите "Изучить 5 слов"</p>
               </div>
@@ -669,7 +675,10 @@
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="contact-modal-title">Контакт</h3>
-        <button class="modal-close" id="contact-modal-close">&times;</button>
+        <div class="modal-header-actions">
+          <button class="icon-btn modal-edit-btn" id="edit-contact-modal-btn" title="Редактировать">✏️</button>
+          <button class="modal-close" id="contact-modal-close">&times;</button>
+        </div>
       </div>
       <div class="modal-body" id="contact-modal-body"></div>
     </div>

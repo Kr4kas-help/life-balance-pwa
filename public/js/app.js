@@ -1020,14 +1020,37 @@ function uploadFile() {
 
 async function learnWords() {
   const container = document.getElementById('words-day-container');
+  const progressContainer = document.getElementById('words-progress-container');
   
-  if (appState.wordsToday.length >= 5) {
+  // Получаем уже изученные слова сегодня
+  const today = new Date().toISOString().split('T')[0];
+  const allWords = await db.getAll('words') || [];
+  const todayLearned = allWords.filter(w => w.date === today && w.learned);
+  
+  if (todayLearned.length >= 5) {
     container.innerHTML = '<p class="empty-state">Лимит слов на сегодня исчерпан</p>';
+    if (progressContainer) progressContainer.style.display = 'none';
     return;
   }
   
-  const allWords = Object.values(WORD_DICTIONARIES).flat();
-  const shuffled = allWords.sort(() => 0.5 - Math.random());
+  // Показываем прогресс бар
+  if (progressContainer) {
+    progressContainer.style.display = 'block';
+    updateWordsProgress(todayLearned.length, 5);
+  }
+  
+  // Получаем все слова и фильтруем уже изученные
+  const allDictionaryWords = Object.values(WORD_DICTIONARIES).flat();
+  const learnedWordsToday = todayLearned.map(w => w.word);
+  const availableWords = allDictionaryWords.filter(w => !learnedWordsToday.includes(w.word));
+  
+  if (availableWords.length === 0) {
+    container.innerHTML = '<p class="empty-state">Все слова изучены! Завтра будут новые.</p>';
+    return;
+  }
+  
+  // Берём 5 случайных слов из доступных
+  const shuffled = availableWords.sort(() => 0.5 - Math.random());
   const newWords = shuffled.slice(0, 5);
   
   appState.wordsToday = newWords.map(w => ({ ...w, learned: false }));
@@ -1035,7 +1058,7 @@ async function learnWords() {
   container.innerHTML = newWords.map((item, index) => `
     <div class="word-card-day">
       <label class="checkbox-container word-checkbox">
-        <input type="checkbox" class="word-check" data-index="${index}">
+        <input type="checkbox" class="word-check" data-index="${index}" data-word="${item.word}">
         <span class="checkmark"></span>
       </label>
       <div class="word-info">
@@ -1054,24 +1077,47 @@ async function learnWords() {
       
       if (e.target.checked && !word.learned) {
         word.learned = true;
-        await db.saveWord({
+        
+        // Сохраняем слово в базу
+        const wordData = {
+          id: `word_${Date.now()}_${index}`,
           word: word.word,
           translation: word.translation,
           theme: 'daily',
-          date: new Date().toISOString().split('T')[0],
+          date: today,
           learned: true
-        });
+        };
+        
+        await db.add('words', wordData);
+        
+        // Обновляем прогресс
+        const learnedCount = todayLearned.length + container.querySelectorAll('.word-check:checked').length;
+        updateWordsProgress(learnedCount, 5);
+        
         await loadWords();
         await checkAchievements();
         notifications.showToast('Слово добавлено в историю!', 'success');
-      } else if (!e.target.checked && word.learned) {
-        word.learned = false;
-        // Можно удалить из истории если нужно
       }
     });
   });
   
   notifications.showToast('5 слов готово к изучению!', 'success');
+}
+
+function updateWordsProgress(current, total) {
+  const progressBar = document.getElementById('words-progress-bar');
+  const progressText = document.getElementById('words-progress-text');
+  
+  if (!progressBar || !progressText) return;
+  
+  const percent = (current / total) * 100;
+  progressBar.style.width = `${percent}%`;
+  
+  // Градиент от красного к зеленому
+  const hue = (percent / 100) * 120; // 0 = красный, 120 = зеленый
+  progressBar.style.background = `linear-gradient(90deg, hsl(0, 70%, 50%) ${percent}%, hsl(${hue}, 70%, 50%) ${percent}%)`;
+  
+  progressText.textContent = `${current}/${total} слов`;
 }
 
 async function loadWords() {
@@ -1562,10 +1608,23 @@ window.openContactModal = async function(id) {
   const modal = document.getElementById('contact-modal');
   const title = document.getElementById('contact-modal-title');
   const body = document.getElementById('contact-modal-body');
+  const editBtn = document.getElementById('edit-contact-modal-btn');
   
   title.textContent = contact.fio || 'Контакт';
+  
+  // Показываем кнопку редактирования
+  if (editBtn) {
+    editBtn.style.display = 'flex';
+    editBtn.onclick = () => openEditContactModal(contact);
+  }
+  
   body.innerHTML = `
     <div class="contact-details">
+      ${contact.photo ? `
+        <div class="contact-detail-photo">
+          <img src="${contact.photo}" alt="${contact.fio}">
+        </div>
+      ` : ''}
       <div class="detail-row">
         <span class="detail-label">👤 ФИО:</span>
         <span class="detail-value">${contact.fio || '-'}</span>
@@ -1602,6 +1661,90 @@ window.openContactModal = async function(id) {
   
   modal.style.display = 'flex';
 };
+
+function openEditContactModal(contact) {
+  document.getElementById('contact-modal').style.display = 'none';
+  
+  // Заполняем форму контакта
+  document.getElementById('contact-form').style.display = 'block';
+  document.getElementById('contact-fio').value = contact.fio || '';
+  document.getElementById('contact-phone').value = contact.phone || '';
+  document.getElementById('contact-org').value = contact.organization || '';
+  document.getElementById('contact-job').value = contact.job || '';
+  document.getElementById('contact-location').value = contact.location || '';
+  document.getElementById('contact-note').value = contact.note || '';
+  document.getElementById('contact-extra').value = contact.extra || '';
+  
+  // Устанавливаем фото
+  if (contact.photo) {
+    contactPhotoBase64 = contact.photo;
+    updateContactPhotoPreview();
+  }
+  
+  // Сохраняем ID для обновления
+  window.editingContactId = contact.id;
+  
+  // Меняем текст кнопки сохранения
+  const saveBtn = document.getElementById('save-contact-btn');
+  if (saveBtn) saveBtn.textContent = 'Обновить';
+}
+
+// Обновляем функцию saveContact для поддержки редактирования
+async function saveContact() {
+  console.log('[APP] saveContact called');
+  const fio = document.getElementById('contact-fio')?.value.trim();
+  const phone = document.getElementById('contact-phone')?.value.trim();
+  const org = document.getElementById('contact-org')?.value.trim();
+  const job = document.getElementById('contact-job')?.value.trim();
+  const location = document.getElementById('contact-location')?.value.trim();
+  const note = document.getElementById('contact-note')?.value.trim();
+  const extra = document.getElementById('contact-extra')?.value.trim();
+  
+  if (!fio && !phone) {
+    notifications.showToast('Введите ФИО или телефон', 'warning');
+    return;
+  }
+  
+  const contact = { 
+    fio, 
+    phone, 
+    organization: org, 
+    job, 
+    location, 
+    note, 
+    extra,
+    photo: contactPhotoBase64
+  };
+  
+  // Если редактируем - добавляем ID
+  if (window.editingContactId) {
+    contact.id = window.editingContactId;
+    await db.put('contacts', contact);
+    window.editingContactId = null;
+    
+    // Возвращаем текст кнопки
+    const saveBtn = document.getElementById('save-contact-btn');
+    if (saveBtn) saveBtn.textContent = 'Сохранить';
+  } else {
+    console.log('[APP] Saving contact:', contact);
+    await db.saveContact(contact);
+  }
+  
+  // Сброс формы и фото
+  if (document.getElementById('contact-fio')) document.getElementById('contact-fio').value = '';
+  if (document.getElementById('contact-phone')) document.getElementById('contact-phone').value = '';
+  if (document.getElementById('contact-org')) document.getElementById('contact-org').value = '';
+  if (document.getElementById('contact-job')) document.getElementById('contact-job').value = '';
+  if (document.getElementById('contact-location')) document.getElementById('contact-location').value = '';
+  if (document.getElementById('contact-note')) document.getElementById('contact-note').value = '';
+  if (document.getElementById('contact-extra')) document.getElementById('contact-extra').value = '';
+  contactPhotoBase64 = null;
+  updateContactPhotoPreview();
+  document.getElementById('contact-form').style.display = 'none';
+  
+  await loadContacts();
+  notifications.showToast('Контакт сохранён', 'success');
+}
 
 window.deleteContact = async function(id) {
   await db.deleteContact(id);
