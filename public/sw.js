@@ -1,5 +1,5 @@
 // Service Worker для офлайн-работы PWA
-const CACHE_NAME = 'life-balance-v1';
+const CACHE_NAME = 'life-balance-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -8,13 +8,13 @@ const STATIC_ASSETS = [
   '/js/app.js',
   '/js/db.js',
   '/js/notifications.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-192.svg',
+  '/icons/icon-512.svg'
 ];
 
 // Установка Service Worker
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing Service Worker...');
+  console.log('[SW] Installing Service Worker v3...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -25,9 +25,9 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Активация Service Worker
+// Активация Service Worker - очистка старых кэшей
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating Service Worker...');
+  console.log('[SW] Activating Service Worker v3...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(

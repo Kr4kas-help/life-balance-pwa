@@ -21,7 +21,11 @@ class Database {
   constructor() {
     this.db = null;
     this.isOnline = navigator.onLine;
-    this.init();
+    this.ready = this.init();
+  }
+
+  async ensureReady() {
+    await this.ready;
   }
 
   async init() {
@@ -107,6 +111,7 @@ class Database {
 
   // Generic CRUD операции
   async add(storeName, data) {
+    await this.ensureReady();
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
@@ -117,6 +122,7 @@ class Database {
   }
 
   async put(storeName, data) {
+    await this.ensureReady();
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
@@ -127,6 +133,7 @@ class Database {
   }
 
   async get(storeName, id) {
+    await this.ensureReady();
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readonly');
       const store = transaction.objectStore(storeName);
@@ -137,6 +144,7 @@ class Database {
   }
 
   async getAll(storeName) {
+    await this.ensureReady();
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readonly');
       const store = transaction.objectStore(storeName);
@@ -147,6 +155,7 @@ class Database {
   }
 
   async delete(storeName, id) {
+    await this.ensureReady();
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readwrite');
       const store = transaction.objectStore(storeName);
@@ -157,6 +166,7 @@ class Database {
   }
 
   async getByIndex(storeName, indexName, value) {
+    await this.ensureReady();
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction(storeName, 'readonly');
       const store = transaction.objectStore(storeName);

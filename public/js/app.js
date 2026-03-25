@@ -100,21 +100,41 @@ const appState = {
 };
 
 // Инициализация приложения
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Регистрация Service Worker с обновлением
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker зарегистрирован:', registration.scope);
+      
+      // Проверяем наличие обновлений
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('Доступно обновление! Перезагрузите страницу.');
+          }
+        });
+      });
+    } catch (e) {
+      console.error('SW registration failed:', e);
+    }
+  }
+
   initNavigation();
   initEventListeners();
   initModal();
   updateStreak();
-  loadProfile();
-  loadTasks();
-  loadTasksCalendar();
-  loadGratitudes();
-  loadSupplements();
-  loadWords();
-  loadPrinciples();
-  loadAchievements();
-  loadBooks();
-  initLifeCalendar();
+  await loadProfile();
+  await loadTasks();
+  await loadTasksCalendar();
+  await loadGratitudes();
+  await loadSupplements();
+  await loadWords();
+  await loadPrinciples();
+  await loadAchievements();
+  await loadBooks();
+  await initLifeCalendar();
   notifications.scheduleWaterReminder();
 });
 
