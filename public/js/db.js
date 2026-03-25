@@ -317,15 +317,14 @@ class Database {
   }
 
   // Бады
-  async saveSupplement(name) {
-    const supplement = {
-      id: `supplement_${Date.now()}`,
-      name,
-      taken_today: false,
-      created_at: new Date().toISOString()
-    };
-    await this.add(STORE_NAMES.SUPPLEMENTS, supplement);
-    return supplement;
+  async saveSupplement(supplement) {
+    const data = typeof supplement === 'string' 
+      ? { id: `supplement_${Date.now()}`, name: supplement, taken_today: false }
+      : supplement;
+    
+    if (!data.id) data.id = `supplement_${Date.now()}`;
+    await this.put(STORE_NAMES.SUPPLEMENTS, data);
+    return data;
   }
 
   async getSupplements() {
@@ -340,6 +339,29 @@ class Database {
       return supplement;
     }
     return null;
+  }
+
+  async deleteSupplement(id) {
+    return this.delete(STORE_NAMES.SUPPLEMENTS, id);
+  }
+
+  // Принципы
+  async savePrinciple(text) {
+    const principle = {
+      id: `principle_${Date.now()}`,
+      text,
+      created_at: new Date().toISOString()
+    };
+    await this.add(STORE_NAMES.PRINCIPLES, principle);
+    return principle;
+  }
+
+  async getPrinciples() {
+    return this.getAll(STORE_NAMES.PRINCIPLES);
+  }
+
+  async deletePrinciple(id) {
+    return this.delete(STORE_NAMES.PRINCIPLES, id);
   }
 
   // Синхронизация

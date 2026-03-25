@@ -317,8 +317,8 @@ async function saveTasks() {
     }
   }
   
-  loadTasksCalendar();
-  checkAchievements();
+  await loadTasksCalendar();
+  await checkAchievements();
   notifications.showToast('Задачи сохранены', 'success');
 }
 
@@ -334,7 +334,7 @@ async function loadTasks() {
     if (checkbox) checkbox.checked = task.completed;
   });
   
-  updateStats();
+  await updateStats();
 }
 
 async function updateStats() {
@@ -773,22 +773,19 @@ async function addPrinciple() {
   const input = document.getElementById('principle-input');
   const text = input.value.trim();
   
-  if (!text) return;
+  if (!text) {
+    notifications.showToast('Введите текст принципа', 'warning');
+    return;
+  }
   
-  const principle = {
-    id: `principle_${Date.now()}`,
-    text,
-    created_at: new Date().toISOString()
-  };
-  
-  await db.put('principles', principle);
+  await db.savePrinciple(text);
   input.value = '';
-  loadPrinciples();
+  await loadPrinciples();
   notifications.showToast('Принцип добавлен', 'success');
 }
 
 async function loadPrinciples() {
-  const principles = await db.getAll('principles') || [];
+  const principles = await db.getPrinciples() || [];
   const list = document.getElementById('principles-list');
   
   if (!list) return;
@@ -807,8 +804,8 @@ async function loadPrinciples() {
 }
 
 window.deletePrinciple = async function(id) {
-  await db.delete('principles', id);
-  loadPrinciples();
+  await db.deletePrinciple(id);
+  await loadPrinciples();
 };
 
 // === КАЛЕНДАРЬ ЖИЗНИ ===
@@ -827,17 +824,23 @@ async function saveBirthDate() {
   profile.birthDate = birthDate;
   await db.put('users', profile);
   
-  initLifeCalendar();
+  // Сохраняем в локальное хранилище для быстрого доступа
+  localStorage.setItem('userBirthDate', birthDate);
+  
+  await initLifeCalendar();
   notifications.showToast('Дата рождения сохранена', 'success');
 }
 
-function initLifeCalendar() {
+async function initLifeCalendar() {
   const grid = document.getElementById('life-grid');
   if (!grid) return;
   
+  // Получаем дату рождения из профиля или localStorage
+  let birthDateStr = appState.userProfile.birthDate || localStorage.getItem('userBirthDate');
+  
   let birthDate;
-  if (appState.userProfile.birthDate) {
-    birthDate = new Date(appState.userProfile.birthDate);
+  if (birthDateStr) {
+    birthDate = new Date(birthDateStr);
   } else {
     birthDate = new Date();
     birthDate.setFullYear(birthDate.getFullYear() - 25);
@@ -846,7 +849,7 @@ function initLifeCalendar() {
   const now = new Date();
   const totalWeeks = 80 * 52; // 4160 недель до 80 лет
   const weeksInLife = Math.floor((now - birthDate) / (7 * 24 * 60 * 60 * 1000));
-  const weeksLeft = totalWeeks - weeksInLife;
+  const weeksLeft = Math.max(0, totalWeeks - weeksInLife);
   const lifePercent = Math.round((weeksInLife / totalWeeks) * 100);
   
   document.getElementById('weeks-lived').textContent = weeksInLife;
@@ -859,11 +862,13 @@ function initLifeCalendar() {
   document.getElementById('weeks-left').textContent = weeksLeft;
   document.getElementById('birth-date-display').textContent = birthDate.toLocaleDateString('ru-RU');
   
+  // Обновляем поле ввода
   const birthInput = document.getElementById('birth-date-input');
-  if (birthInput && !birthInput.value) {
-    birthInput.value = appState.userProfile.birthDate || '';
+  if (birthInput) {
+    birthInput.value = birthDateStr || '';
   }
   
+  // Генерация сетки
   grid.innerHTML = '';
   for (let i = 0; i < totalWeeks; i++) {
     const week = document.createElement('div');
@@ -1038,7 +1043,7 @@ async function addSupplement() {
   const daysInput = document.getElementById('supplement-days');
   
   const name = nameInput.value.trim();
-  const time = timeInput.value;
+  const time = timeInput.value || '09:00';
   const days = daysInput.value;
   
   if (!name) {
@@ -1049,24 +1054,24 @@ async function addSupplement() {
   const supplement = {
     id: `supplement_${Date.now()}`,
     name,
-    time: time || '09:00',
+    time,
     days: days ? days.split(',').map(d => parseInt(d.trim())).filter(d => d >= 1 && d <= 365) : [],
     taken_today: false,
     created_at: new Date().toISOString()
   };
   
-  await db.put('supplements', supplement);
+  await db.saveSupplement(supplement);
   
   nameInput.value = '';
   timeInput.value = '';
   daysInput.value = '';
   
-  loadSupplements();
+  await loadSupplements();
   notifications.showToast('Добавка добавлена', 'success');
 }
 
 async function loadSupplements() {
-  const supplements = await db.getSupplements();
+  const supplements = await db.getSupplements() || [];
   const tbody = document.getElementById('supplements-body');
   
   if (!tbody) return;
@@ -1077,7 +1082,6 @@ async function loadSupplements() {
   }
   
   tbody.innerHTML = supplements.map(s => {
-    const dayNum = new Date().getDay(); // 0-6
     const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
     const isToday = s.days.length === 0 || s.days.includes(dayOfYear);
     
@@ -1104,8 +1108,8 @@ async function loadSupplements() {
 }
 
 window.deleteSupplement = async function(id) {
-  await db.delete('supplements', id);
-  loadSupplements();
+  await db.deleteSupplement(id);
+  await loadSupplements();
 };
 
 // === БЛАГОДАРНОСТЬ ===
@@ -1113,17 +1117,20 @@ async function saveGratitude() {
   const input = document.getElementById('gratitude-input');
   const text = input.value.trim();
   
-  if (!text) return;
+  if (!text) {
+    notifications.showToast('Введите текст благодарности', 'warning');
+    return;
+  }
   
   await db.saveGratitude(text);
   input.value = '';
-  loadGratitudes();
-  checkAchievements();
+  await loadGratitudes();
+  await checkAchievements();
   notifications.showToast('Благодарность сохранена', 'success');
 }
 
 async function loadGratitudes() {
-  const gratitudes = await db.getGratitudes();
+  const gratitudes = await db.getGratitudes() || [];
   const container = document.getElementById('today-gratitudes');
   
   if (container) {
