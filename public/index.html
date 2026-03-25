@@ -339,17 +339,18 @@
         <div class="learn-page">
           <h2>📚 Изучать</h2>
 
-          <!-- Загрузка файла -->
+          <!-- URL для терминов -->
           <div class="task-card">
             <div class="task-header">
-              <span class="task-icon">📁</span>
-              <h3>Загрузить материал</h3>
+              <span class="task-icon">🔗</span>
+              <h3>Источник терминов</h3>
             </div>
             <div class="task-body">
-              <input type="file" id="file-upload" class="file-input" accept=".txt,.pdf,.doc,.docx">
-              <button class="btn btn-primary btn-full" id="upload-file-btn">Загрузить</button>
-              <div class="file-info" id="file-info" style="display: none;">
-                <span class="file-name" id="file-name"></span>
+              <input type="url" id="terms-url" class="input-field" placeholder="https://example.com/terms.txt">
+              <button class="btn btn-primary btn-full" id="save-terms-url-btn">Сохранить URL</button>
+              <div class="url-info" id="url-info" style="display: none;">
+                <span class="url-label">Текущий URL:</span>
+                <span class="url-value" id="current-url"></span>
               </div>
             </div>
           </div>
@@ -381,7 +382,7 @@
               <h3>История слов</h3>
             </div>
             <div class="task-body">
-              <div class="words-history" id="words-history">
+              <div class="words-history-container" id="words-history-container">
                 <p class="empty-state">Пока нет изученных слов</p>
               </div>
             </div>

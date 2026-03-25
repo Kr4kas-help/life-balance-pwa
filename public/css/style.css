@@ -2502,43 +2502,113 @@ body {
   width: 0%;
 }
 
-/* Word Checkbox */
-.word-card-day {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--bg-secondary);
+/* Words History */
+.words-history-container {
+  max-height: 300px;
+  overflow: hidden;
   border-radius: var(--radius-md);
-  margin-bottom: 8px;
 }
 
-.word-checkbox {
-  flex-shrink: 0;
-}
-
-.word-info {
+.words-history-scroll {
+  max-height: 280px;
+  overflow-y: auto;
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.word-history-item {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent);
+}
+
+.word-history-word {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.word-history-translation {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Principles */
+.principles-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.principle-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+.principle-text {
+  font-size: 13px;
+  color: var(--text-secondary);
   flex: 1;
 }
 
-.word-number {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--accent);
-  min-width: 24px;
+.principle-menu {
+  position: relative;
 }
 
-.word-text {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.word-translation {
-  font-size: 12px;
+.principle-menu-btn {
+  background: none;
+  border: none;
   color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.principle-menu-btn:hover {
+  color: var(--text-primary);
+}
+
+.principle-menu-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  min-width: 120px;
+}
+
+.principle-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--danger);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.principle-menu-item:hover {
+  background: var(--bg-secondary);
 }
 
 /* Words Progress */
@@ -2647,6 +2717,66 @@ body {
 
 .btn-danger:hover {
   background: #dc2626;
+}
+
+/* Word Checkbox */
+.word-card-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+}
+
+.word-checkbox {
+  flex-shrink: 0;
+}
+
+.word-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.word-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 24px;
+}
+
+.word-text {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.word-translation {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* URL Info */
+.url-info {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.url-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.url-value {
+  font-size: 12px;
+  color: var(--accent);
+  word-break: break-all;
 }
 
 /* Responsive */

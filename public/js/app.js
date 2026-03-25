@@ -1,7 +1,78 @@
 // app.js - Основная логика приложения
 console.log('[APP] Loading app.js...');
 
-// Словари для изучения
+// Словари для изучения - встроенные + из URL
+let customWords = []; // Слова из URL
+
+async function loadCustomWords() {
+  const url = localStorage.getItem('termsUrl');
+  if (!url) return [];
+  
+  try {
+    const response = await fetch(url);
+    const text = await response.text();
+    
+    const lines = text.split('\n');
+    const words = [];
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      let parts = trimmed.split(/\s*[-–—:]\s*/);
+      if (parts.length >= 2) {
+        words.push({
+          word: parts[0].trim(),
+          translation: parts.slice(1).join(' ').trim()
+        });
+      }
+    }
+    
+    customWords = words;
+    console.log('[APP] Загружено слов из URL:', customWords.length);
+    return words;
+  } catch (e) {
+    console.error('[APP] Ошибка загрузки URL:', e);
+    return [];
+  }
+}
+
+async function saveTermsUrl() {
+  const input = document.getElementById('terms-url');
+  const url = input?.value.trim();
+  
+  if (!url) {
+    notifications.showToast('Введите URL', 'warning');
+    return;
+  }
+  
+  localStorage.setItem('termsUrl', url);
+  
+  const urlInfo = document.getElementById('url-info');
+  const currentUrl = document.getElementById('current-url');
+  
+  if (urlInfo) urlInfo.style.display = 'block';
+  if (currentUrl) currentUrl.textContent = url;
+  
+  await loadCustomWords();
+  notifications.showToast('URL сохранён', 'success');
+}
+
+async function loadTermsUrl() {
+  const url = localStorage.getItem('termsUrl');
+  const urlInfo = document.getElementById('url-info');
+  const currentUrl = document.getElementById('current-url');
+  const input = document.getElementById('terms-url');
+  
+  if (url && urlInfo && currentUrl) {
+    urlInfo.style.display = 'block';
+    currentUrl.textContent = url;
+    if (input) input.value = url;
+    await loadCustomWords();
+  }
+}
+
+// Встроенные словари
 const WORD_DICTIONARIES = {
   business: [
     { word: 'Leverage', translation: 'Использовать, использовать преимущество' },
@@ -136,6 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadBooks();
   await loadContacts();
   await loadWaterProgress();
+  await loadTermsUrl();
   await initLifeCalendar();
   notifications.scheduleWaterReminder();
   
@@ -309,8 +381,15 @@ function initEventListeners() {
   if (dndSwitch) dndSwitch.addEventListener('change', toggleDND);
 
   // === ИЗУЧАТЬ ===
-  const uploadFileBtn = document.getElementById('upload-file-btn');
-  if (uploadFileBtn) uploadFileBtn.addEventListener('click', uploadFile);
+  // URL терминов
+  const saveTermsUrlBtn = document.getElementById('save-terms-url-btn');
+  if (saveTermsUrlBtn) {
+    saveTermsUrlBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveTermsUrl();
+    });
+  }
+  
   const learnWordsBtn = document.getElementById('learn-words-btn');
   if (learnWordsBtn) learnWordsBtn.addEventListener('click', learnWords);
 
@@ -1166,17 +1245,26 @@ function updateWordsProgress(current, total) {
 }
 
 async function loadWords() {
-  const words = await db.getAll('words');
-  const container = document.getElementById('words-history');
+  const words = await db.getAll('words_learned') || [];
+  const container = document.getElementById('words-history-container');
+
+  if (!container) return;
   
-  if (container && words.length > 0) {
-    container.innerHTML = words.slice(-20).reverse().map(w => `
-      <div class="word-history-item">
-        <span class="word-history-word">${w.word}</span>
-        <span class="word-history-translation">${w.translation}</span>
-      </div>
-    `).join('');
+  if (words.length === 0) {
+    container.innerHTML = '<p class="empty-state">Пока нет изученных слов</p>';
+    return;
   }
+
+  container.innerHTML = `
+    <div class="words-history-scroll">
+      ${words.slice(-50).reverse().map(w => `
+        <div class="word-history-item">
+          <span class="word-history-word">${w.word}</span>
+          <span class="word-history-translation">${w.translation}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 // === ЖИЗНЕННЫЕ ПРИНЦИПЫ ===
@@ -1184,12 +1272,12 @@ async function addPrinciple() {
   console.log('[APP] addPrinciple called');
   const input = document.getElementById('principle-input');
   const text = input?.value.trim();
-  
+
   if (!text) {
     notifications.showToast('Введите текст принципа', 'warning');
     return;
   }
-  
+
   console.log('[APP] Saving principle:', text);
   await db.savePrinciple(text);
   input.value = '';
@@ -1200,26 +1288,51 @@ async function addPrinciple() {
 async function loadPrinciples() {
   const principles = await db.getPrinciples() || [];
   const list = document.getElementById('principles-list');
-  
+
   if (!list) return;
-  
+
   if (principles.length === 0) {
     list.innerHTML = '<p class="empty-state">Пока нет принципов</p>';
     return;
   }
-  
+
   list.innerHTML = principles.map(p => `
     <div class="principle-item">
       <span class="principle-text">${p.text}</span>
-      <button class="btn-delete" onclick="deletePrinciple('${p.id}')">&times;</button>
+      <div class="principle-menu">
+        <button class="principle-menu-btn" onclick="togglePrincipleMenu('${p.id}')">⋮</button>
+        <div class="principle-menu-dropdown" id="principle-menu-${p.id}">
+          <button class="principle-menu-item" onclick="deletePrinciple('${p.id}')">🗑️ Удалить</button>
+        </div>
+      </div>
     </div>
   `).join('');
 }
 
+window.togglePrincipleMenu = function(id) {
+  const menu = document.getElementById(`principle-menu-${id}`);
+  if (menu) {
+    // Закрыть все остальные меню
+    document.querySelectorAll('.principle-menu-dropdown').forEach(m => {
+      if (m.id !== `principle-menu-${id}`) m.style.display = 'none';
+    });
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  }
+};
+
 window.deletePrinciple = async function(id) {
   await db.deletePrinciple(id);
   await loadPrinciples();
+  // Закрыть все меню
+  document.querySelectorAll('.principle-menu-dropdown').forEach(m => m.style.display = 'none');
 };
+
+// Закрыть меню при клике вне
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.principle-menu')) {
+    document.querySelectorAll('.principle-menu-dropdown').forEach(m => m.style.display = 'none');
+  }
+});
 
 // === КАЛЕНДАРЬ ЖИЗНИ ===
 async function saveBirthDate() {
