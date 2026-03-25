@@ -1,4 +1,5 @@
 // app.js - Основная логика приложения
+console.log('[APP] Loading app.js...');
 
 // Словари для изучения
 const WORD_DICTIONARIES = {
@@ -101,23 +102,21 @@ const appState = {
 
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[APP] DOMContentLoaded');
+  
+  // Ждём инициализации БД
+  if (typeof db !== 'undefined' && db.ready) {
+    await db.ready;
+    console.log('[APP] Database ready');
+  }
+  
   // Регистрация Service Worker с обновлением
   if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
-      console.log('Service Worker зарегистрирован:', registration.scope);
-      
-      // Проверяем наличие обновлений
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('Доступно обновление! Перезагрузите страницу.');
-          }
-        });
-      });
+      console.log('[APP] Service Worker зарегистрирован:', registration.scope);
     } catch (e) {
-      console.error('SW registration failed:', e);
+      console.error('[APP] SW registration failed:', e);
     }
   }
 
@@ -138,15 +137,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadContacts();
   await initLifeCalendar();
   notifications.scheduleWaterReminder();
+  
+  console.log('[APP] Initialization complete');
 });
 
 // Навигация
 function initNavigation() {
+  console.log('[APP] initNavigation');
   const navItems = document.querySelectorAll('.nav-item');
+  console.log('[APP] Nav items found:', navItems.length);
   
   navItems.forEach(item => {
     item.addEventListener('click', () => {
       const tab = item.dataset.tab;
+      console.log('[APP] Switching to tab:', tab);
       switchTab(tab);
     });
   });
@@ -164,9 +168,7 @@ function switchTab(tabName) {
   });
   
   if (tabName === 'calendar') {
-    initLifeCalendar();
-  } else if (tabName === 'profile') {
-    loadAchievements();
+    setTimeout(() => initLifeCalendar(), 100);
   }
 }
 
@@ -174,6 +176,8 @@ function switchTab(tabName) {
 function initModal() {
   const closeBtn = document.getElementById('modal-close-btn');
   const modal = document.getElementById('day-tasks-modal');
+  const contactClose = document.getElementById('contact-modal-close');
+  const contactModal = document.getElementById('contact-modal');
   
   if (closeBtn && modal) {
     closeBtn.addEventListener('click', () => {
@@ -186,36 +190,37 @@ function initModal() {
       }
     });
   }
-}
-
-function openDayTasksModal(date, tasks) {
-  const modal = document.getElementById('day-tasks-modal');
-  const dateEl = document.getElementById('modal-date');
-  const tasksList = document.getElementById('modal-tasks-list');
   
-  dateEl.textContent = formatDateFull(date);
-  
-  if (tasks.length === 0) {
-    tasksList.innerHTML = '<p class="empty-state">Нет задач за этот день</p>';
-  } else {
-    tasksList.innerHTML = tasks.map(task => `
-      <div class="modal-task ${task.completed ? 'completed' : ''}">
-        <span class="modal-task-icon">${task.completed ? '✅' : '⬜'}</span>
-        <span class="modal-task-text">${task.text}</span>
-      </div>
-    `).join('');
+  if (contactClose && contactModal) {
+    contactClose.addEventListener('click', () => {
+      contactModal.style.display = 'none';
+    });
+    
+    contactModal.addEventListener('click', (e) => {
+      if (e.target === contactModal) {
+        contactModal.style.display = 'none';
+      }
+    });
   }
-  
-  modal.style.display = 'flex';
 }
 
 // Инициализация обработчиков
 function initEventListeners() {
-  // === ЗАДАЧИ ===
-  document.getElementById('save-tasks-btn')?.addEventListener('click', saveTasks);
+  console.log('[APP] initEventListeners');
   
+  // === ЗАДАЧИ ===
+  const saveTasksBtn = document.getElementById('save-tasks-btn');
+  console.log('[APP] save-tasks-btn found:', !!saveTasksBtn);
+  if (saveTasksBtn) {
+    saveTasksBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      console.log('[APP] Save tasks clicked');
+      await saveTasks();
+    });
+  }
+
   document.querySelectorAll('.daily-task-check').forEach(checkbox => {
-    checkbox.addEventListener('change', (e) => {
+    checkbox.addEventListener('change', async (e) => {
       const taskId = e.target.dataset.task;
       const input = document.getElementById(`task-input-${taskId}`);
       const taskData = {
@@ -224,29 +229,52 @@ function initEventListeners() {
         completed: e.target.checked,
         date: new Date().toISOString().split('T')[0]
       };
-      db.put('daily_tasks', taskData);
-      loadTasksCalendar();
-      checkAchievements();
+      console.log('[APP] Task changed:', taskData);
+      await db.put('daily_tasks', taskData);
+      await loadTasksCalendar();
+      await checkAchievements();
     });
   });
-  
+
   // Книги
-  document.getElementById('add-book-btn')?.addEventListener('click', () => {
-    document.getElementById('book-form').style.display = 'block';
-  });
+  const addBookBtn = document.getElementById('add-book-btn');
+  if (addBookBtn) {
+    addBookBtn.addEventListener('click', () => {
+      document.getElementById('book-form').style.display = 'block';
+    });
+  }
   
-  document.getElementById('save-book-btn')?.addEventListener('click', saveBook);
-  document.getElementById('cancel-book-btn')?.addEventListener('click', () => {
-    document.getElementById('book-form').style.display = 'none';
-  });
+  const saveBookBtn = document.getElementById('save-book-btn');
+  if (saveBookBtn) {
+    saveBookBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveBook();
+    });
+  }
   
+  const cancelBookBtn = document.getElementById('cancel-book-btn');
+  if (cancelBookBtn) {
+    cancelBookBtn.addEventListener('click', () => {
+      document.getElementById('book-form').style.display = 'none';
+    });
+  }
+
   // Разминка
-  document.getElementById('start-exercise')?.addEventListener('click', toggleExerciseTimer);
-  document.getElementById('reset-exercise')?.addEventListener('click', resetExerciseTimer);
-  
+  const startExerciseBtn = document.getElementById('start-exercise');
+  if (startExerciseBtn) {
+    startExerciseBtn.addEventListener('click', toggleExerciseTimer);
+  }
+  const resetExerciseBtn = document.getElementById('reset-exercise');
+  if (resetExerciseBtn) {
+    resetExerciseBtn.addEventListener('click', resetExerciseTimer);
+  }
+
   // Вода
-  document.getElementById('add-water')?.addEventListener('click', addWater);
-  
+  const addWaterBtn = document.getElementById('add-water');
+  if (addWaterBtn) {
+    addWaterBtn.addEventListener('click', addWater);
+  }
+
   // === ФОКУС ===
   document.querySelectorAll('.quick-timer-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -254,63 +282,138 @@ function initEventListeners() {
       setFocusTimer(minutes * 60);
     });
   });
-  
-  document.getElementById('start-focus')?.addEventListener('click', toggleFocusTimer);
-  document.getElementById('pause-focus')?.addEventListener('click', pauseFocusTimer);
-  document.getElementById('reset-focus')?.addEventListener('click', resetFocusTimer);
-  
-  document.getElementById('dnd-switch')?.addEventListener('change', toggleDND);
-  
+
+  const startFocusBtn = document.getElementById('start-focus');
+  if (startFocusBtn) startFocusBtn.addEventListener('click', toggleFocusTimer);
+  const pauseFocusBtn = document.getElementById('pause-focus');
+  if (pauseFocusBtn) pauseFocusBtn.addEventListener('click', pauseFocusTimer);
+  const resetFocusBtn = document.getElementById('reset-focus');
+  if (resetFocusBtn) resetFocusBtn.addEventListener('click', resetFocusTimer);
+
+  const dndSwitch = document.getElementById('dnd-switch');
+  if (dndSwitch) dndSwitch.addEventListener('change', toggleDND);
+
   // === ИЗУЧАТЬ ===
-  document.getElementById('upload-file-btn')?.addEventListener('click', uploadFile);
-  document.getElementById('learn-words-btn')?.addEventListener('click', learnWords);
-  
+  const uploadFileBtn = document.getElementById('upload-file-btn');
+  if (uploadFileBtn) uploadFileBtn.addEventListener('click', uploadFile);
+  const learnWordsBtn = document.getElementById('learn-words-btn');
+  if (learnWordsBtn) learnWordsBtn.addEventListener('click', learnWords);
+
   // Принципы
-  document.getElementById('add-principle-btn')?.addEventListener('click', addPrinciple);
-  
+  const addPrincipleBtn = document.getElementById('add-principle-btn');
+  if (addPrincipleBtn) {
+    addPrincipleBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await addPrinciple();
+    });
+  }
+
   // === КАЛЕНДАРЬ ===
-  document.getElementById('save-birth-date')?.addEventListener('click', saveBirthDate);
-  
+  const saveBirthDateBtn = document.getElementById('save-birth-date');
+  if (saveBirthDateBtn) {
+    saveBirthDateBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveBirthDate();
+    });
+  }
+
   // === ПРОФИЛЬ ===
-  document.getElementById('edit-profile-btn')?.addEventListener('click', () => {
-    document.getElementById('profile-edit-form').style.display = 'block';
-    document.getElementById('profile-fullname').value = appState.userProfile.fullName;
-    document.getElementById('profile-birthdate').value = appState.userProfile.birthDate || '';
-    document.getElementById('profile-email-input').value = appState.userProfile.email;
-  });
+  const editProfileBtn = document.getElementById('edit-profile-btn');
+  if (editProfileBtn) {
+    editProfileBtn.addEventListener('click', () => {
+      document.getElementById('profile-edit-form').style.display = 'block';
+      document.getElementById('profile-fullname').value = appState.userProfile.fullName;
+      document.getElementById('profile-birthdate').value = appState.userProfile.birthDate || '';
+      document.getElementById('profile-email-input').value = appState.userProfile.email;
+    });
+  }
+
+  const saveProfileBtn = document.getElementById('save-profile-btn');
+  if (saveProfileBtn) {
+    saveProfileBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveProfile();
+    });
+  }
   
-  document.getElementById('save-profile-btn')?.addEventListener('click', saveProfile);
-  document.getElementById('cancel-profile-btn')?.addEventListener('click', () => {
-    document.getElementById('profile-edit-form').style.display = 'none';
-  });
-  
+  const cancelProfileBtn = document.getElementById('cancel-profile-btn');
+  if (cancelProfileBtn) {
+    cancelProfileBtn.addEventListener('click', () => {
+      document.getElementById('profile-edit-form').style.display = 'none';
+    });
+  }
+
   // Аватар
-  document.getElementById('avatar-upload')?.addEventListener('change', handleAvatarUpload);
+  const avatarUpload = document.getElementById('avatar-upload');
+  if (avatarUpload) {
+    avatarUpload.addEventListener('change', handleAvatarUpload);
+  }
+
+  const saveGratitudeBtn = document.getElementById('save-gratitude');
+  if (saveGratitudeBtn) {
+    saveGratitudeBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveGratitude();
+    });
+  }
   
-  document.getElementById('save-gratitude')?.addEventListener('click', saveGratitude);
-  document.getElementById('add-supplement')?.addEventListener('click', addSupplement);
-  document.getElementById('syncBtn')?.addEventListener('click', syncData);
+  const addSupplementBtn = document.getElementById('add-supplement');
+  if (addSupplementBtn) {
+    addSupplementBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await addSupplement();
+    });
+  }
+  
+  const syncBtn = document.getElementById('syncBtn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', syncData);
+  }
   
   // === КОНТАКТЫ ===
-  document.getElementById('add-contact-btn')?.addEventListener('click', () => {
-    document.getElementById('contact-form').style.display = 'block';
-  });
+  const addContactBtn = document.getElementById('add-contact-btn');
+  if (addContactBtn) {
+    addContactBtn.addEventListener('click', () => {
+      document.getElementById('contact-form').style.display = 'block';
+    });
+  }
   
-  document.getElementById('save-contact-btn')?.addEventListener('click', saveContact);
-  document.getElementById('cancel-contact-btn')?.addEventListener('click', () => {
-    document.getElementById('contact-form').style.display = 'none';
-  });
+  const saveContactBtn = document.getElementById('save-contact-btn');
+  if (saveContactBtn) {
+    saveContactBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await saveContact();
+    });
+  }
   
-  document.getElementById('contact-search')?.addEventListener('input', searchContacts);
+  const cancelContactBtn = document.getElementById('cancel-contact-btn');
+  if (cancelContactBtn) {
+    cancelContactBtn.addEventListener('click', () => {
+      document.getElementById('contact-form').style.display = 'none';
+    });
+  }
+  
+  const contactSearch = document.getElementById('contact-search');
+  if (contactSearch) {
+    contactSearch.addEventListener('input', searchContacts);
+  }
   
   // Модальные окна
-  document.getElementById('modal-close-btn')?.addEventListener('click', () => {
-    document.getElementById('day-tasks-modal').style.display = 'none';
-  });
+  const modalCloseBtn = document.getElementById('modal-close-btn');
+  const dayTasksModal = document.getElementById('day-tasks-modal');
+  if (modalCloseBtn && dayTasksModal) {
+    modalCloseBtn.addEventListener('click', () => {
+      dayTasksModal.style.display = 'none';
+    });
+  }
   
-  document.getElementById('contact-modal-close')?.addEventListener('click', () => {
-    document.getElementById('contact-modal').style.display = 'none';
-  });
+  const contactModalClose = document.getElementById('contact-modal-close');
+  const contactModal = document.getElementById('contact-modal');
+  if (contactModalClose && contactModal) {
+    contactModalClose.addEventListener('click', () => {
+      contactModal.style.display = 'none';
+    });
+  }
   
   document.querySelectorAll('.modal').forEach(modal => {
     modal.addEventListener('click', (e) => {
@@ -319,6 +422,8 @@ function initEventListeners() {
       }
     });
   });
+  
+  console.log('[APP] Event listeners initialized');
 }
 
 // === СЕРИЯ ЗАХОДОВ ===
@@ -348,23 +453,27 @@ function updateStreak() {
   }
   
   appState.streak = streak;
-  document.getElementById('streak-count').textContent = streak;
+  const streakEl = document.getElementById('streak-count');
+  if (streakEl) streakEl.textContent = streak;
 }
 
 // === ЗАДАЧИ ===
 async function saveTasks() {
+  console.log('[APP] saveTasks called');
   const today = new Date().toISOString().split('T')[0];
   
   for (let i = 1; i <= 3; i++) {
     const input = document.getElementById(`task-input-${i}`);
     const checkbox = document.querySelector(`.daily-task-check[data-task="${i}"]`);
     if (input && input.value.trim()) {
-      await db.put('daily_tasks', {
+      const taskData = {
         id: `task_${today}_${i}`,
         text: input.value.trim(),
         completed: checkbox?.checked || false,
         date: today
-      });
+      };
+      console.log('[APP] Saving task:', taskData);
+      await db.put('daily_tasks', taskData);
     }
   }
   
@@ -374,8 +483,10 @@ async function saveTasks() {
 }
 
 async function loadTasks() {
+  console.log('[APP] loadTasks called');
   const today = new Date().toISOString().split('T')[0];
   const tasks = await db.getByIndex('daily_tasks', 'date', today);
+  console.log('[APP] Loaded tasks:', tasks);
   
   tasks.forEach(task => {
     const taskId = task.id.split('_').pop();
@@ -404,15 +515,22 @@ async function updateStats() {
   const total = tasks.length || 3;
   const rate = Math.round((completedToday / total) * 100) || 0;
   
-  document.getElementById('completed-today').textContent = completedToday;
-  document.getElementById('completed-week').textContent = completedWeek;
-  document.getElementById('completion-rate').textContent = `${rate}%`;
+  const elToday = document.getElementById('completed-today');
+  const elWeek = document.getElementById('completed-week');
+  const elRate = document.getElementById('completion-rate');
+  if (elToday) elToday.textContent = completedToday;
+  if (elWeek) elWeek.textContent = completedWeek;
+  if (elRate) elRate.textContent = `${rate}%`;
 }
 
 // === КАЛЕНДАРЬ ЗАДАЧ ===
 async function loadTasksCalendar() {
+  console.log('[APP] loadTasksCalendar called');
   const calendar = document.getElementById('tasks-calendar');
-  if (!calendar) return;
+  if (!calendar) {
+    console.log('[APP] tasks-calendar element not found');
+    return;
+  }
   
   const today = new Date();
   const month = today.getMonth();
@@ -420,16 +538,16 @@ async function loadTasksCalendar() {
   
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-  const startDay = firstDay.getDay() || 7; // Пн=1, Вс=7
+  const startDay = firstDay.getDay() || 7;
   
-  // Получаем все задачи месяца
   const allTasks = await db.getAll('daily_tasks');
+  console.log('[APP] All tasks for calendar:', allTasks);
+  
   const monthTasks = allTasks.filter(t => {
     const taskDate = new Date(t.date);
     return taskDate.getMonth() === month && taskDate.getFullYear() === year;
   });
   
-  // Группируем по дням
   const tasksByDay = {};
   monthTasks.forEach(task => {
     const day = new Date(task.date).getDate();
@@ -437,7 +555,6 @@ async function loadTasksCalendar() {
     tasksByDay[day].push(task);
   });
   
-  // Создаем календарь
   let html = `
     <div class="calendar-header">
       <span>${today.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</span>
@@ -452,12 +569,10 @@ async function loadTasksCalendar() {
       <div class="calendar-weekday">Вс</div>
   `;
   
-  // Пустые ячейки до первого дня
   for (let i = 1; i < startDay; i++) {
     html += '<div class="calendar-day-empty"></div>';
   }
   
-  // Дни месяца
   for (let day = 1; day <= lastDay.getDate(); day++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dayTasks = tasksByDay[day] || [];
@@ -484,17 +599,39 @@ async function loadTasksCalendar() {
   
   html += '</div>';
   calendar.innerHTML = html;
+  console.log('[APP] Calendar rendered');
   
-  // Обработчики кликов
   calendar.querySelectorAll('.calendar-day').forEach(el => {
     el.addEventListener('click', () => {
       const date = el.dataset.date;
-      const dayTasks = tasksByDay[new Date(date).getDate()] || [];
+      const dayNum = new Date(date).getDate();
+      const dayTasks = tasksByDay[dayNum] || [];
       openDayTasksModal(date, dayTasks);
     });
   });
   
-  updateStats();
+  await updateStats();
+}
+
+function openDayTasksModal(date, tasks) {
+  const modal = document.getElementById('day-tasks-modal');
+  const dateEl = document.getElementById('modal-date');
+  const tasksList = document.getElementById('modal-tasks-list');
+  
+  dateEl.textContent = formatDateFull(date);
+  
+  if (tasks.length === 0) {
+    tasksList.innerHTML = '<p class="empty-state">Нет задач за этот день</p>';
+  } else {
+    tasksList.innerHTML = tasks.map(task => `
+      <div class="modal-task ${task.completed ? 'completed' : ''}">
+        <span class="modal-task-icon">${task.completed ? '✅' : '⬜'}</span>
+        <span class="modal-task-text">${task.text}</span>
+      </div>
+    `).join('');
+  }
+  
+  modal.style.display = 'flex';
 }
 
 function formatDateFull(dateStr) {
@@ -504,11 +641,12 @@ function formatDateFull(dateStr) {
 
 // === КНИГИ ===
 async function saveBook() {
+  console.log('[APP] saveBook called');
   const titleInput = document.getElementById('book-title-input');
   const pagesInput = document.getElementById('book-total-pages');
   
-  const title = titleInput.value.trim();
-  const totalPages = parseInt(pagesInput.value) || 0;
+  const title = titleInput?.value.trim();
+  const totalPages = parseInt(pagesInput?.value) || 0;
   
   if (!title) {
     notifications.showToast('Введите название книги', 'warning');
@@ -533,11 +671,11 @@ async function saveBook() {
   await db.put('books', book);
   appState.currentBook = book;
   
-  titleInput.value = '';
-  pagesInput.value = '';
+  if (titleInput) titleInput.value = '';
+  if (pagesInput) pagesInput.value = '';
   document.getElementById('book-form').style.display = 'none';
   
-  loadBooks();
+  await loadBooks();
   notifications.showToast('Книга добавлена', 'success');
 }
 
@@ -575,7 +713,7 @@ async function loadBooks() {
   }).join('');
 }
 
-async function addBookPage(bookId) {
+window.addBookPage = async function(bookId) {
   const books = await db.getAll('books') || [];
   const book = books.find(b => b.id === bookId);
   
@@ -587,13 +725,13 @@ async function addBookPage(bookId) {
       appState.currentBook = book;
     }
     
-    loadBooks();
+    await loadBooks();
     notifications.showToast('+10 страниц', 'success');
-    checkAchievements();
+    await checkAchievements();
   }
-}
+};
 
-async function setCurrentBook(bookId) {
+window.setCurrentBook = async function(bookId) {
   const books = await db.getAll('books') || [];
   
   for (const b of books) {
@@ -601,9 +739,9 @@ async function setCurrentBook(bookId) {
     await db.put('books', b);
   }
   
-  loadBooks();
+  await loadBooks();
   notifications.showToast('Книга выбрана текущей', 'success');
-}
+};
 
 // === ТАЙМЕРЫ ===
 function toggleExerciseTimer() {
@@ -697,7 +835,8 @@ function resetFocusTimer() {
 async function completeFocusSession() {
   pauseFocusTimer();
   appState.sessionsToday++;
-  document.getElementById('session-count').textContent = appState.sessionsToday;
+  const sessionCount = document.getElementById('session-count');
+  if (sessionCount) sessionCount.textContent = appState.sessionsToday;
   
   await db.saveFocusSession(25);
   notifications.showToast('Сессия фокуса завершена!', 'success');
@@ -705,7 +844,7 @@ async function completeFocusSession() {
   
   appState.focusTime = 25 * 60;
   updateTimerDisplay('focus-time', appState.focusTime);
-  checkAchievements();
+  await checkAchievements();
 }
 
 function updateTimerDisplay(elementId, seconds) {
@@ -755,7 +894,7 @@ function uploadFile() {
   const fileInfo = document.getElementById('file-info');
   const fileName = document.getElementById('file-name');
   
-  if (fileInput.files && fileInput.files[0]) {
+  if (fileInput?.files && fileInput.files[0]) {
     const file = fileInput.files[0];
     appState.uploadedFile = file;
     
@@ -800,8 +939,8 @@ async function learnWords() {
     });
   }
   
-  loadWords();
-  checkAchievements();
+  await loadWords();
+  await checkAchievements();
   notifications.showToast('5 слов изучено!', 'success');
 }
 
@@ -821,14 +960,16 @@ async function loadWords() {
 
 // === ЖИЗНЕННЫЕ ПРИНЦИПЫ ===
 async function addPrinciple() {
+  console.log('[APP] addPrinciple called');
   const input = document.getElementById('principle-input');
-  const text = input.value.trim();
+  const text = input?.value.trim();
   
   if (!text) {
     notifications.showToast('Введите текст принципа', 'warning');
     return;
   }
   
+  console.log('[APP] Saving principle:', text);
   await db.savePrinciple(text);
   input.value = '';
   await loadPrinciples();
@@ -862,7 +1003,7 @@ window.deletePrinciple = async function(id) {
 // === КАЛЕНДАРЬ ЖИЗНИ ===
 async function saveBirthDate() {
   const input = document.getElementById('birth-date-input');
-  const birthDate = input.value;
+  const birthDate = input?.value;
   
   if (!birthDate) {
     notifications.showToast('Выберите дату', 'warning');
@@ -875,7 +1016,6 @@ async function saveBirthDate() {
   profile.birthDate = birthDate;
   await db.put('users', profile);
   
-  // Сохраняем в локальное хранилище для быстрого доступа
   localStorage.setItem('userBirthDate', birthDate);
   
   await initLifeCalendar();
@@ -886,7 +1026,6 @@ async function initLifeCalendar() {
   const grid = document.getElementById('life-grid');
   if (!grid) return;
   
-  // Получаем дату рождения из профиля или localStorage
   let birthDateStr = appState.userProfile.birthDate || localStorage.getItem('userBirthDate');
   
   let birthDate;
@@ -898,28 +1037,34 @@ async function initLifeCalendar() {
   }
   
   const now = new Date();
-  const totalWeeks = 80 * 52; // 4160 недель до 80 лет
+  const totalWeeks = 80 * 52;
   const weeksInLife = Math.floor((now - birthDate) / (7 * 24 * 60 * 60 * 1000));
   const weeksLeft = Math.max(0, totalWeeks - weeksInLife);
   const lifePercent = Math.round((weeksInLife / totalWeeks) * 100);
   
-  document.getElementById('weeks-lived').textContent = weeksInLife;
-  document.getElementById('total-weeks').textContent = totalWeeks;
-  document.getElementById('life-percent').textContent = lifePercent + '%';
+  const elWeeksLived = document.getElementById('weeks-lived');
+  const elTotalWeeks = document.getElementById('total-weeks');
+  const elLifePercent = document.getElementById('life-percent');
+  const elAge = document.getElementById('age-value');
+  const elWeeksValue = document.getElementById('weeks-value');
+  const elWeeksLeft = document.getElementById('weeks-left');
+  const elBirthDate = document.getElementById('birth-date-display');
+  
+  if (elWeeksLived) elWeeksLived.textContent = weeksInLife;
+  if (elTotalWeeks) elTotalWeeks.textContent = totalWeeks;
+  if (elLifePercent) elLifePercent.textContent = lifePercent + '%';
   
   const ageYears = Math.floor((now - birthDate) / (365.25 * 24 * 60 * 60 * 1000));
-  document.getElementById('age-value').textContent = ageYears + ' лет';
-  document.getElementById('weeks-value').textContent = weeksInLife;
-  document.getElementById('weeks-left').textContent = weeksLeft;
-  document.getElementById('birth-date-display').textContent = birthDate.toLocaleDateString('ru-RU');
+  if (elAge) elAge.textContent = ageYears + ' лет';
+  if (elWeeksValue) elWeeksValue.textContent = weeksInLife;
+  if (elWeeksLeft) elWeeksLeft.textContent = weeksLeft;
+  if (elBirthDate) elBirthDate.textContent = birthDate.toLocaleDateString('ru-RU');
   
-  // Обновляем поле ввода
   const birthInput = document.getElementById('birth-date-input');
   if (birthInput) {
     birthInput.value = birthDateStr || '';
   }
   
-  // Генерация сетки
   grid.innerHTML = '';
   for (let i = 0; i < totalWeeks; i++) {
     const week = document.createElement('div');
@@ -948,21 +1093,26 @@ async function loadProfile() {
     };
   }
   
-  document.getElementById('profile-name-display').textContent = appState.userProfile.fullName || 'Гость';
-  document.getElementById('profile-email').textContent = appState.userProfile.email;
+  const nameDisplay = document.getElementById('profile-name-display');
+  const emailDisplay = document.getElementById('profile-email');
+  
+  if (nameDisplay) nameDisplay.textContent = appState.userProfile.fullName || 'Гость';
+  if (emailDisplay) emailDisplay.textContent = appState.userProfile.email;
   
   if (appState.userProfile.avatar) {
     const img = document.getElementById('avatar-img');
     const emoji = document.getElementById('avatar-emoji');
-    img.src = appState.userProfile.avatar;
-    img.style.display = 'block';
-    emoji.style.display = 'none';
+    if (img) {
+      img.src = appState.userProfile.avatar;
+      img.style.display = 'block';
+    }
+    if (emoji) emoji.style.display = 'none';
   }
   
-  updateProfileStats();
+  await updateProfileStats();
   
   if (appState.userProfile.birthDate) {
-    initLifeCalendar();
+    await initLifeCalendar();
   }
 }
 
@@ -971,15 +1121,19 @@ async function updateProfileStats() {
   const words = await db.getAll('words');
   const focus = await db.getAll('focus_sessions');
   
-  document.getElementById('total-tasks').textContent = tasks.filter(t => t.completed).length;
-  document.getElementById('total-words').textContent = words.length;
-  document.getElementById('focus-minutes').textContent = focus.reduce((sum, s) => sum + (s.duration || 0), 0);
+  const elTasks = document.getElementById('total-tasks');
+  const elWords = document.getElementById('total-words');
+  const elFocus = document.getElementById('focus-minutes');
+  
+  if (elTasks) elTasks.textContent = tasks.filter(t => t.completed).length;
+  if (elWords) elWords.textContent = words.length;
+  if (elFocus) elFocus.textContent = focus.reduce((sum, s) => sum + (s.duration || 0), 0);
 }
 
 async function saveProfile() {
-  const fullName = document.getElementById('profile-fullname').value.trim();
-  const birthDate = document.getElementById('profile-birthdate').value;
-  const email = document.getElementById('profile-email-input').value.trim();
+  const fullName = document.getElementById('profile-fullname')?.value.trim();
+  const birthDate = document.getElementById('profile-birthdate')?.value;
+  const email = document.getElementById('profile-email-input')?.value.trim();
   
   appState.userProfile = {
     id: 'current',
@@ -990,12 +1144,16 @@ async function saveProfile() {
   
   await db.put('users', appState.userProfile);
   
-  document.getElementById('profile-name-display').textContent = fullName;
-  document.getElementById('profile-email').textContent = email;
+  const nameDisplay = document.getElementById('profile-name-display');
+  const emailDisplay = document.getElementById('profile-email');
+  
+  if (nameDisplay) nameDisplay.textContent = fullName;
+  if (emailDisplay) emailDisplay.textContent = email;
+  
   document.getElementById('profile-edit-form').style.display = 'none';
   
   if (birthDate) {
-    initLifeCalendar();
+    await initLifeCalendar();
   }
   
   notifications.showToast('Профиль сохранён', 'success');
@@ -1012,9 +1170,11 @@ function handleAvatarUpload(e) {
     
     const img = document.getElementById('avatar-img');
     const emoji = document.getElementById('avatar-emoji');
-    img.src = base64;
-    img.style.display = 'block';
-    emoji.style.display = 'none';
+    if (img) {
+      img.src = base64;
+      img.style.display = 'block';
+    }
+    if (emoji) emoji.style.display = 'none';
     
     await db.put('users', appState.userProfile);
     notifications.showToast('Аватар сохранён', 'success');
@@ -1027,7 +1187,6 @@ async function loadAchievements() {
   const achievements = await db.getAchievements();
   const unlockedTypes = achievements.map(a => a.achievement_type);
   
-  // Получаем статистику
   const tasks = await db.getAll('daily_tasks');
   const completedTasks = tasks.filter(t => t.completed).length;
   
@@ -1041,7 +1200,6 @@ async function loadAchievements() {
   
   const gratitudes = await db.getAll('gratitude');
   
-  // Водные дни (уникальные даты)
   const waterLogs = await db.getAll('water_log');
   const waterDays = new Set(waterLogs.map(w => w.date)).size;
   
@@ -1064,8 +1222,8 @@ async function loadAchievements() {
     }
     
     const percent = Math.min((current / config.required) * 100, 100);
-    progressEl.style.width = `${percent}%`;
-    progressText.textContent = `${current}/${config.required}`;
+    if (progressEl) progressEl.style.width = `${percent}%`;
+    if (progressText) progressText.textContent = `${current}/${config.required}`;
     
     if (unlockedTypes.includes(type)) {
       el.classList.add('unlocked');
@@ -1084,7 +1242,7 @@ async function checkAchievements() {
     await db.unlockAchievement('task-master-10');
   }
   
-  loadAchievements();
+  await loadAchievements();
 }
 
 // === БАДЫ ===
@@ -1093,9 +1251,9 @@ async function addSupplement() {
   const timeInput = document.getElementById('supplement-time');
   const daysInput = document.getElementById('supplement-days');
   
-  const name = nameInput.value.trim();
-  const time = timeInput.value || '09:00';
-  const days = daysInput.value;
+  const name = nameInput?.value.trim();
+  const time = timeInput?.value || '09:00';
+  const days = daysInput?.value;
   
   if (!name) {
     notifications.showToast('Введите название', 'warning');
@@ -1113,9 +1271,9 @@ async function addSupplement() {
   
   await db.saveSupplement(supplement);
   
-  nameInput.value = '';
-  timeInput.value = '';
-  daysInput.value = '';
+  if (nameInput) nameInput.value = '';
+  if (timeInput) timeInput.value = '';
+  if (daysInput) daysInput.value = '';
   
   await loadSupplements();
   notifications.showToast('Добавка добавлена', 'success');
@@ -1132,24 +1290,19 @@ async function loadSupplements() {
     return;
   }
   
-  tbody.innerHTML = supplements.map(s => {
-    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
-    const isToday = s.days.length === 0 || s.days.includes(dayOfYear);
-    
-    return `
-      <tr>
-        <td>${s.name}</td>
-        <td>${s.time}</td>
-        <td>${s.days.length > 0 ? s.days.join(', ') : 'Ежедневно'}</td>
-        <td>
-          <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
-        </td>
-        <td>
-          <button class="btn-delete-sm" onclick="deleteSupplement('${s.id}')">&times;</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
+  tbody.innerHTML = supplements.map(s => `
+    <tr>
+      <td>${s.name}</td>
+      <td>${s.time}</td>
+      <td>${s.days.length > 0 ? s.days.join(', ') : 'Ежедневно'}</td>
+      <td>
+        <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
+      </td>
+      <td>
+        <button class="btn-delete-sm" onclick="deleteSupplement('${s.id}')">&times;</button>
+      </td>
+    </tr>
+  `).join('');
   
   tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
     checkbox.addEventListener('change', async () => {
@@ -1161,92 +1314,6 @@ async function loadSupplements() {
 window.deleteSupplement = async function(id) {
   await db.deleteSupplement(id);
   await loadSupplements();
-};
-
-// === БЛАГОДАРНОСТЬ ===
-async function saveGratitude() {
-  const input = document.getElementById('gratitude-input');
-  const text = input.value.trim();
-
-  if (!text) {
-    notifications.showToast('Введите текст благодарности', 'warning');
-    return;
-  }
-
-  const gratitude = {
-    id: `gratitude_${Date.now()}`,
-    text,
-    date: new Date().toISOString().split('T')[0],
-    created_at: new Date().toISOString()
-  };
-  
-  await db.add('gratitude', gratitude);
-  input.value = '';
-  await loadGratitudes();
-  await loadGratitudeCalendar();
-  await checkAchievements();
-  notifications.showToast('Благодарность сохранена', 'success');
-}
-
-async function loadGratitudes() {
-  const today = new Date().toISOString().split('T')[0];
-  const allGratitudes = await db.getAll('gratitude') || [];
-  const todayGratitudes = allGratitudes.filter(g => g.date === today);
-  
-  const container = document.getElementById('today-gratitudes');
-  if (container) {
-    if (todayGratitudes.length === 0) {
-      container.innerHTML = '<p class="empty-state">Пока нет записей</p>';
-    } else {
-      container.innerHTML = todayGratitudes.map(g => `
-        <div class="gratitude-item">
-          <span>${g.text}</span>
-          <button class="btn-delete-sm" onclick="deleteGratitude('${g.id}')">&times;</button>
-        </div>
-      `).join('');
-    }
-  }
-}
-
-async function loadGratitudeCalendar() {
-  const calendar = document.getElementById('gratitude-calendar');
-  if (!calendar) return;
-  
-  const allGratitudes = await db.getAll('gratitude') || [];
-  
-  // Группируем по датам
-  const byDate = {};
-  allGratitudes.forEach(g => {
-    if (!byDate[g.date]) byDate[g.date] = [];
-    byDate[g.date].push(g);
-  });
-  
-  // Последние 30 дней
-  const dates = Object.keys(byDate).sort().reverse().slice(0, 30);
-  
-  if (dates.length === 0) {
-    calendar.innerHTML = '<p class="empty-state">Нет записей</p>';
-    return;
-  }
-  
-  calendar.innerHTML = `
-    <h4>История благодарностей</h4>
-    <div class="gratitude-calendar-list">
-      ${dates.map(date => `
-        <div class="gratitude-calendar-day">
-          <span class="gratitude-date">${formatDateFull(date)}</span>
-          <span class="gratitude-count">${byDate[date].length} зап.</span>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-window.deleteGratitude = async function(id) {
-  await db.delete('gratitude', id);
-  await loadGratitudes();
-  await loadGratitudeCalendar();
-  notifications.showToast('Запись удалена', 'success');
 };
 
 // === КОНТАКТЫ ===
@@ -1274,13 +1341,14 @@ async function loadContacts() {
 }
 
 async function saveContact() {
-  const fio = document.getElementById('contact-fio').value.trim();
-  const phone = document.getElementById('contact-phone').value.trim();
-  const org = document.getElementById('contact-org').value.trim();
-  const job = document.getElementById('contact-job').value.trim();
-  const location = document.getElementById('contact-location').value.trim();
-  const note = document.getElementById('contact-note').value.trim();
-  const extra = document.getElementById('contact-extra').value.trim();
+  console.log('[APP] saveContact called');
+  const fio = document.getElementById('contact-fio')?.value.trim();
+  const phone = document.getElementById('contact-phone')?.value.trim();
+  const org = document.getElementById('contact-org')?.value.trim();
+  const job = document.getElementById('contact-job')?.value.trim();
+  const location = document.getElementById('contact-location')?.value.trim();
+  const note = document.getElementById('contact-note')?.value.trim();
+  const extra = document.getElementById('contact-extra')?.value.trim();
   
   if (!fio && !phone) {
     notifications.showToast('Введите ФИО или телефон', 'warning');
@@ -1288,16 +1356,16 @@ async function saveContact() {
   }
   
   const contact = { fio, phone, organization: org, job, location, note, extra };
+  console.log('[APP] Saving contact:', contact);
   await db.saveContact(contact);
   
-  // Очистка формы
-  document.getElementById('contact-fio').value = '';
-  document.getElementById('contact-phone').value = '';
-  document.getElementById('contact-org').value = '';
-  document.getElementById('contact-job').value = '';
-  document.getElementById('contact-location').value = '';
-  document.getElementById('contact-note').value = '';
-  document.getElementById('contact-extra').value = '';
+  if (document.getElementById('contact-fio')) document.getElementById('contact-fio').value = '';
+  if (document.getElementById('contact-phone')) document.getElementById('contact-phone').value = '';
+  if (document.getElementById('contact-org')) document.getElementById('contact-org').value = '';
+  if (document.getElementById('contact-job')) document.getElementById('contact-job').value = '';
+  if (document.getElementById('contact-location')) document.getElementById('contact-location').value = '';
+  if (document.getElementById('contact-note')) document.getElementById('contact-note').value = '';
+  if (document.getElementById('contact-extra')) document.getElementById('contact-extra').value = '';
   document.getElementById('contact-form').style.display = 'none';
   
   await loadContacts();
@@ -1305,7 +1373,7 @@ async function saveContact() {
 }
 
 async function searchContacts() {
-  const query = document.getElementById('contact-search').value;
+  const query = document.getElementById('contact-search')?.value;
   const contacts = await db.searchContacts(query);
   
   const list = document.getElementById('contacts-list');
@@ -1384,13 +1452,99 @@ window.deleteContact = async function(id) {
   notifications.showToast('Контакт удалён', 'success');
 };
 
+// === БЛАГОДАРНОСТЬ ===
+async function saveGratitude() {
+  console.log('[APP] saveGratitude called');
+  const input = document.getElementById('gratitude-input');
+  const text = input?.value.trim();
+
+  if (!text) {
+    notifications.showToast('Введите текст благодарности', 'warning');
+    return;
+  }
+
+  const gratitude = {
+    id: `gratitude_${Date.now()}`,
+    text,
+    date: new Date().toISOString().split('T')[0],
+    created_at: new Date().toISOString()
+  };
+  
+  console.log('[APP] Saving gratitude:', gratitude);
+  await db.add('gratitude', gratitude);
+  input.value = '';
+  await loadGratitudes();
+  await loadGratitudeCalendar();
+  await checkAchievements();
+  notifications.showToast('Благодарность сохранена', 'success');
+}
+
+async function loadGratitudes() {
+  const today = new Date().toISOString().split('T')[0];
+  const allGratitudes = await db.getAll('gratitude') || [];
+  const todayGratitudes = allGratitudes.filter(g => g.date === today);
+  
+  const container = document.getElementById('today-gratitudes');
+  if (container) {
+    if (todayGratitudes.length === 0) {
+      container.innerHTML = '<p class="empty-state">Пока нет записей</p>';
+    } else {
+      container.innerHTML = todayGratitudes.map(g => `
+        <div class="gratitude-item">
+          <span>${g.text}</span>
+          <button class="btn-delete-sm" onclick="deleteGratitude('${g.id}')">&times;</button>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+async function loadGratitudeCalendar() {
+  const calendar = document.getElementById('gratitude-calendar');
+  if (!calendar) return;
+  
+  const allGratitudes = await db.getAll('gratitude') || [];
+  
+  const byDate = {};
+  allGratitudes.forEach(g => {
+    if (!byDate[g.date]) byDate[g.date] = [];
+    byDate[g.date].push(g);
+  });
+  
+  const dates = Object.keys(byDate).sort().reverse().slice(0, 30);
+  
+  if (dates.length === 0) {
+    calendar.innerHTML = '<p class="empty-state">Нет записей</p>';
+    return;
+  }
+  
+  calendar.innerHTML = `
+    <h4>История благодарностей</h4>
+    <div class="gratitude-calendar-list">
+      ${dates.map(date => `
+        <div class="gratitude-calendar-day">
+          <span class="gratitude-date">${formatDateFull(date)}</span>
+          <span class="gratitude-count">${byDate[date].length} зап.</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+window.deleteGratitude = async function(id) {
+  await db.delete('gratitude', id);
+  await loadGratitudes();
+  await loadGratitudeCalendar();
+  notifications.showToast('Запись удалена', 'success');
+};
+
 // === СИНХРОНИЗАЦИЯ ===
 async function syncData() {
   const btn = document.getElementById('syncBtn');
   btn.classList.add('syncing');
-  
+
   await db.syncWithServer();
-  
+
   setTimeout(() => {
     btn.classList.remove('syncing');
     notifications.showToast('Данные синхронизированы', 'success');
@@ -1398,7 +1552,10 @@ async function syncData() {
 }
 
 // Глобальные функции
-window.addBookPage = addBookPage;
-window.setCurrentBook = setCurrentBook;
-window.deletePrinciple = deletePrinciple;
-window.deleteSupplement = deleteSupplement;
+window.addBookPage = window.addBookPage || addBookPage;
+window.setCurrentBook = window.setCurrentBook || setCurrentBook;
+window.deletePrinciple = window.deletePrinciple || deletePrinciple;
+window.deleteSupplement = window.deleteSupplement || deleteSupplement;
+window.openContactModal = window.openContactModal || openContactModal;
+window.deleteContact = window.deleteContact || deleteContact;
+window.deleteGratitude = window.deleteGratitude || deleteGratitude;
