@@ -44,6 +44,15 @@
         <div class="tasks-page">
           <h2>📋 Задачи</h2>
           
+          <!-- Счетчик серии -->
+          <div class="streak-card">
+            <div class="streak-icon">🔥</div>
+            <div class="streak-info">
+              <span class="streak-value" id="streak-count">0</span>
+              <span class="streak-label">дней подряд</span>
+            </div>
+          </div>
+          
           <!-- Сегодняшние задачи -->
           <div class="task-card">
             <div class="task-header">
@@ -78,7 +87,7 @@
             </div>
           </div>
 
-          <!-- История выполнения -->
+          <!-- Календарь выполнения -->
           <div class="task-card">
             <div class="task-header">
               <span class="task-icon">📊</span>
@@ -88,7 +97,7 @@
               <div class="history-stats">
                 <div class="stat-item">
                   <span class="stat-value" id="completed-today">0</span>
-                  <span class="stat-label">Выполнено сегодня</span>
+                  <span class="stat-label">Сегодня</span>
                 </div>
                 <div class="stat-item">
                   <span class="stat-value" id="completed-week">0</span>
@@ -100,15 +109,7 @@
                 </div>
               </div>
               
-              <!-- График прогресса -->
-              <div class="progress-chart" id="progress-chart">
-                <div class="chart-bars" id="chart-bars"></div>
-                <div class="chart-labels" id="chart-labels"></div>
-              </div>
-              
-              <div class="history-list" id="history-list">
-                <p class="empty-state">История пуста</p>
-              </div>
+              <div class="tasks-calendar" id="tasks-calendar"></div>
             </div>
           </div>
 
@@ -299,6 +300,21 @@
               </div>
             </div>
           </div>
+
+          <!-- Жизненные принципы -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🎯</span>
+              <h3>Жизненные принципы</h3>
+            </div>
+            <div class="task-body">
+              <div class="principles-form">
+                <input type="text" id="principle-input" class="input-field" placeholder="Ваш принцип...">
+                <button class="btn btn-primary" id="add-principle-btn">Добавить</button>
+              </div>
+              <div class="principles-list" id="principles-list"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -322,7 +338,7 @@
             <div class="task-body">
               <div class="life-calendar">
                 <div class="life-stats">
-                  <span id="weeks-lived">0</span> / <span id="total-weeks">4000</span> недель
+                  <span id="weeks-lived">0</span> / <span id="total-weeks">4160</span> недель
                   <span id="life-percent">0%</span> жизни
                 </div>
                 <div class="life-grid" id="life-grid"></div>
@@ -367,7 +383,10 @@
           <!-- Личный кабинет -->
           <div class="task-card profile-card">
             <div class="profile-header">
-              <div class="profile-avatar" id="profile-avatar">👤</div>
+              <div class="profile-avatar" id="profile-avatar">
+                <img id="avatar-img" src="" alt="Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                <span id="avatar-emoji">👤</span>
+              </div>
               <div class="profile-info">
                 <span class="profile-name-display" id="profile-name-display">Гость</span>
                 <span class="profile-email" id="profile-email">user@example.com</span>
@@ -377,6 +396,10 @@
             
             <!-- Форма редактирования -->
             <div class="profile-edit-form" id="profile-edit-form" style="display: none;">
+              <label class="avatar-upload-label">
+                <div class="avatar-upload-btn">📷 Загрузить фото</div>
+                <input type="file" id="avatar-upload" class="input-field" accept="image/*" style="display: none;">
+              </label>
               <input type="text" id="profile-fullname" class="input-field" placeholder="ФИО">
               <input type="date" id="profile-birthdate" class="input-field">
               <input type="email" id="profile-email-input" class="input-field" placeholder="Email">
@@ -402,6 +425,118 @@
             </div>
           </div>
 
+          <!-- Достижения с прогрессом -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">🏆</span>
+              <h3>Достижения</h3>
+            </div>
+            <div class="task-body">
+              <div class="achievements-grid" id="achievements-grid">
+                <div class="achievement" data-achievement="first-task">
+                  <span class="achievement-icon">✅</span>
+                  <span class="achievement-name">Первая задача</span>
+                  <div class="achievement-progress-container">
+                    <div class="achievement-progress">
+                      <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="achievement-progress-text">0/1</span>
+                  </div>
+                </div>
+                <div class="achievement" data-achievement="task-master-10">
+                  <span class="achievement-icon">📋</span>
+                  <span class="achievement-name">Мастер задач</span>
+                  <div class="achievement-progress-container">
+                    <div class="achievement-progress">
+                      <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="achievement-progress-text">0/10</span>
+                  </div>
+                </div>
+                <div class="achievement" data-achievement="water-master">
+                  <span class="achievement-icon">💧</span>
+                  <span class="achievement-name">Водный мастер</span>
+                  <div class="achievement-progress-container">
+                    <div class="achievement-progress">
+                      <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="achievement-progress-text">0/7 дней</span>
+                  </div>
+                </div>
+                <div class="achievement" data-achievement="focus-champion">
+                  <span class="achievement-icon">🎯</span>
+                  <span class="achievement-name">Чемпион фокуса</span>
+                  <div class="achievement-progress-container">
+                    <div class="achievement-progress">
+                      <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="achievement-progress-text">0/100 мин</span>
+                  </div>
+                </div>
+                <div class="achievement" data-achievement="word-learner">
+                  <span class="achievement-icon">📚</span>
+                  <span class="achievement-name">Словоед</span>
+                  <div class="achievement-progress-container">
+                    <div class="achievement-progress">
+                      <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="achievement-progress-text">0/50 слов</span>
+                  </div>
+                </div>
+                <div class="achievement" data-achievement="book-worm">
+                  <span class="achievement-icon">📖</span>
+                  <span class="achievement-name">Книжный червь</span>
+                  <div class="achievement-progress-container">
+                    <div class="achievement-progress">
+                      <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="achievement-progress-text">0/1000 стр.</span>
+                  </div>
+                </div>
+                <div class="achievement" data-achievement="grateful">
+                  <span class="achievement-icon">🙏</span>
+                  <span class="achievement-name">Благодарный</span>
+                  <div class="achievement-progress-container">
+                    <div class="achievement-progress">
+                      <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="achievement-progress-text">0/7 записей</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Бады и витамины -->
+          <div class="task-card">
+            <div class="task-header">
+              <span class="task-icon">💊</span>
+              <h3>Бады и витамины</h3>
+            </div>
+            <div class="task-body">
+              <div class="supplements-form">
+                <input type="text" id="supplement-name" class="input-field" placeholder="Название">
+                <input type="time" id="supplement-time" class="input-field time-field-sm">
+                <input type="number" id="supplement-days" class="input-field days-field-sm" placeholder="Дни (1,3,5)" min="1" max="365">
+                <button class="btn btn-primary" id="add-supplement">Добавить</button>
+              </div>
+              <div class="supplements-table">
+                <table id="supplements-table">
+                  <thead>
+                    <tr>
+                      <th>Название</th>
+                      <th>Время</th>
+                      <th>Дни</th>
+                      <th>Принято</th>
+                      <th>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody id="supplements-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <!-- Благодарность -->
           <div class="task-card">
             <div class="task-header">
@@ -414,67 +549,6 @@
               <div class="gratitude-list" id="gratitude-today">
                 <h4>Сегодня:</h4>
                 <div id="today-gratitudes"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Достижения -->
-          <div class="task-card">
-            <div class="task-header">
-              <span class="task-icon">🏆</span>
-              <h3>Достижения</h3>
-            </div>
-            <div class="task-body">
-              <div class="achievements-grid" id="achievements-grid">
-                <div class="achievement" data-achievement="first-task">
-                  <span class="achievement-icon">✅</span>
-                  <span class="achievement-name">Первая задача</span>
-                </div>
-                <div class="achievement" data-achievement="water-master">
-                  <span class="achievement-icon">💧</span>
-                  <span class="achievement-name">Водный мастер</span>
-                </div>
-                <div class="achievement" data-achievement="focus-champion">
-                  <span class="achievement-icon">🎯</span>
-                  <span class="achievement-name">Чемпион фокуса</span>
-                </div>
-                <div class="achievement" data-achievement="word-learner">
-                  <span class="achievement-icon">📚</span>
-                  <span class="achievement-name">Словоед</span>
-                </div>
-                <div class="achievement" data-achievement="early-bird">
-                  <span class="achievement-icon">🌅</span>
-                  <span class="achievement-name">Ранняя пташка</span>
-                </div>
-                <div class="achievement" data-achievement="grateful">
-                  <span class="achievement-icon">🙏</span>
-                  <span class="achievement-name">Благодарный</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Бады -->
-          <div class="task-card">
-            <div class="task-header">
-              <span class="task-icon">💊</span>
-              <h3>Бады и витамины</h3>
-            </div>
-            <div class="task-body">
-              <div class="supplements-form">
-                <input type="text" id="supplement-name" class="input-field" placeholder="Название добавки">
-                <button class="btn btn-primary" id="add-supplement">Добавить</button>
-              </div>
-              <div class="supplements-table">
-                <table id="supplements-table">
-                  <thead>
-                    <tr>
-                      <th>Добавка</th>
-                      <th>Принято</th>
-                    </tr>
-                  </thead>
-                  <tbody id="supplements-body"></tbody>
-                </table>
               </div>
             </div>
           </div>
@@ -505,6 +579,17 @@
         <span class="nav-label">Профиль</span>
       </button>
     </nav>
+  </div>
+
+  <!-- Модальное окно для просмотра задач дня -->
+  <div class="modal" id="day-tasks-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-date"></h3>
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-tasks-list"></div>
+    </div>
   </div>
 
   <!-- Основной JS -->

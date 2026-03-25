@@ -64,6 +64,17 @@ const WORD_DICTIONARIES = {
   ]
 };
 
+// Достижения с требованиями
+const ACHIEVEMENTS = {
+  'first-task': { name: 'Первая задача', icon: '✅', required: 1, type: 'tasks' },
+  'task-master-10': { name: 'Мастер задач', icon: '📋', required: 10, type: 'tasks' },
+  'water-master': { name: 'Водный мастер', icon: '💧', required: 7, type: 'water_days' },
+  'focus-champion': { name: 'Чемпион фокуса', icon: '🎯', required: 100, type: 'focus_minutes' },
+  'word-learner': { name: 'Словоед', icon: '📚', required: 50, type: 'words' },
+  'book-worm': { name: 'Книжный червь', icon: '📖', required: 1000, type: 'pages' },
+  'grateful': { name: 'Благодарный', icon: '🙏', required: 7, type: 'gratitudes' }
+};
+
 // Состояние приложения
 const appState = {
   currentTab: 'tasks',
@@ -81,20 +92,26 @@ const appState = {
   userProfile: {
     fullName: '',
     birthDate: null,
-    email: 'user@example.com'
-  }
+    email: 'user@example.com',
+    avatar: null
+  },
+  streak: 0,
+  lastVisit: null
 };
 
 // Инициализация приложения
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initEventListeners();
+  initModal();
+  updateStreak();
   loadProfile();
   loadTasks();
-  loadHistory();
+  loadTasksCalendar();
   loadGratitudes();
   loadSupplements();
   loadWords();
+  loadPrinciples();
   loadAchievements();
   loadBooks();
   initLifeCalendar();
@@ -126,7 +143,48 @@ function switchTab(tabName) {
   
   if (tabName === 'calendar') {
     initLifeCalendar();
+  } else if (tabName === 'profile') {
+    loadAchievements();
   }
+}
+
+// Модальное окно
+function initModal() {
+  const closeBtn = document.getElementById('modal-close-btn');
+  const modal = document.getElementById('day-tasks-modal');
+  
+  if (closeBtn && modal) {
+    closeBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+    
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+  }
+}
+
+function openDayTasksModal(date, tasks) {
+  const modal = document.getElementById('day-tasks-modal');
+  const dateEl = document.getElementById('modal-date');
+  const tasksList = document.getElementById('modal-tasks-list');
+  
+  dateEl.textContent = formatDateFull(date);
+  
+  if (tasks.length === 0) {
+    tasksList.innerHTML = '<p class="empty-state">Нет задач за этот день</p>';
+  } else {
+    tasksList.innerHTML = tasks.map(task => `
+      <div class="modal-task ${task.completed ? 'completed' : ''}">
+        <span class="modal-task-icon">${task.completed ? '✅' : '⬜'}</span>
+        <span class="modal-task-text">${task.text}</span>
+      </div>
+    `).join('');
+  }
+  
+  modal.style.display = 'flex';
 }
 
 // Инициализация обработчиков
@@ -145,8 +203,8 @@ function initEventListeners() {
         date: new Date().toISOString().split('T')[0]
       };
       db.put('daily_tasks', taskData);
-      updateHistory();
-      updateProgressChart();
+      loadTasksCalendar();
+      checkAchievements();
     });
   });
   
@@ -185,6 +243,9 @@ function initEventListeners() {
   document.getElementById('upload-file-btn')?.addEventListener('click', uploadFile);
   document.getElementById('learn-words-btn')?.addEventListener('click', learnWords);
   
+  // Принципы
+  document.getElementById('add-principle-btn')?.addEventListener('click', addPrinciple);
+  
   // === КАЛЕНДАРЬ ===
   document.getElementById('save-birth-date')?.addEventListener('click', saveBirthDate);
   
@@ -201,9 +262,42 @@ function initEventListeners() {
     document.getElementById('profile-edit-form').style.display = 'none';
   });
   
+  // Аватар
+  document.getElementById('avatar-upload')?.addEventListener('change', handleAvatarUpload);
+  
   document.getElementById('save-gratitude')?.addEventListener('click', saveGratitude);
   document.getElementById('add-supplement')?.addEventListener('click', addSupplement);
   document.getElementById('syncBtn')?.addEventListener('click', syncData);
+}
+
+// === СЕРИЯ ЗАХОДОВ ===
+function updateStreak() {
+  const today = new Date().toISOString().split('T')[0];
+  const visited = JSON.parse(localStorage.getItem('visitDays') || '[]');
+  
+  if (!visited.includes(today)) {
+    visited.push(today);
+    localStorage.setItem('visitDays', JSON.stringify(visited));
+  }
+  
+  // Считаем серию
+  let streak = 0;
+  const sortedDays = [...visited].sort().reverse();
+  
+  for (let i = 0; i < sortedDays.length; i++) {
+    const currentDate = new Date(sortedDays[i]);
+    const prevDate = new Date(sortedDays[i + 1] || Date.now() - 86400000);
+    const diff = Math.round((currentDate - prevDate) / (1000 * 60 * 60 * 24));
+    
+    if (diff <= 1 || i === 0) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  
+  appState.streak = streak;
+  document.getElementById('streak-count').textContent = streak;
 }
 
 // === ЗАДАЧИ ===
@@ -223,8 +317,8 @@ async function saveTasks() {
     }
   }
   
-  updateHistory();
-  updateProgressChart();
+  loadTasksCalendar();
+  checkAchievements();
   notifications.showToast('Задачи сохранены', 'success');
 }
 
@@ -240,11 +334,10 @@ async function loadTasks() {
     if (checkbox) checkbox.checked = task.completed;
   });
   
-  updateHistory();
-  updateProgressChart();
+  updateStats();
 }
 
-async function updateHistory() {
+async function updateStats() {
   const today = new Date().toISOString().split('T')[0];
   const tasks = await db.getByIndex('daily_tasks', 'date', today);
   const completedToday = tasks.filter(t => t.completed).length;
@@ -263,78 +356,99 @@ async function updateHistory() {
   document.getElementById('completed-today').textContent = completedToday;
   document.getElementById('completed-week').textContent = completedWeek;
   document.getElementById('completion-rate').textContent = `${rate}%`;
-  
-  // История с текстом задач
-  const historyList = document.getElementById('history-list');
-  if (historyList) {
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const dayTasks = await db.getByIndex('daily_tasks', 'date', dateStr);
-      last7Days.push({ 
-        date: dateStr, 
-        tasks: dayTasks,
-        completed: dayTasks.filter(t => t.completed).length,
-        total: dayTasks.length || 3
-      });
-    }
-    
-    historyList.innerHTML = last7Days.map(day => `
-      <div class="history-day">
-        <div class="history-day-header">
-          <span class="history-date">${formatDate(day.date)}</span>
-          <span class="history-completed">${day.completed}/${day.total}</span>
-        </div>
-        ${day.tasks.length > 0 ? `
-          <div class="history-tasks">
-            ${day.tasks.map(task => `
-              <div class="history-task ${task.completed ? 'completed' : ''}">
-                <span class="task-checkbox">${task.completed ? '✅' : '⬜'}</span>
-                <span class="task-text">${task.text}</span>
-              </div>
-            `).join('')}
-          </div>
-        ` : '<p class="empty-state-small">Нет задач</p>'}
-      </div>
-    `).join('');
-  }
 }
 
-async function updateProgressChart() {
-  const chartBars = document.getElementById('chart-bars');
-  const chartLabels = document.getElementById('chart-labels');
+// === КАЛЕНДАРЬ ЗАДАЧ ===
+async function loadTasksCalendar() {
+  const calendar = document.getElementById('tasks-calendar');
+  if (!calendar) return;
   
-  if (!chartBars) return;
+  const today = new Date();
+  const month = today.getMonth();
+  const year = today.getFullYear();
   
-  const last7Days = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
-    const dayTasks = await db.getByIndex('daily_tasks', 'date', dateStr);
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDay = firstDay.getDay() || 7; // Пн=1, Вс=7
+  
+  // Получаем все задачи месяца
+  const allTasks = await db.getAll('daily_tasks');
+  const monthTasks = allTasks.filter(t => {
+    const taskDate = new Date(t.date);
+    return taskDate.getMonth() === month && taskDate.getFullYear() === year;
+  });
+  
+  // Группируем по дням
+  const tasksByDay = {};
+  monthTasks.forEach(task => {
+    const day = new Date(task.date).getDate();
+    if (!tasksByDay[day]) tasksByDay[day] = [];
+    tasksByDay[day].push(task);
+  });
+  
+  // Создаем календарь
+  let html = `
+    <div class="calendar-header">
+      <span>${today.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}</span>
+    </div>
+    <div class="calendar-grid">
+      <div class="calendar-weekday">Пн</div>
+      <div class="calendar-weekday">Вт</div>
+      <div class="calendar-weekday">Ср</div>
+      <div class="calendar-weekday">Чт</div>
+      <div class="calendar-weekday">Пт</div>
+      <div class="calendar-weekday">Сб</div>
+      <div class="calendar-weekday">Вс</div>
+  `;
+  
+  // Пустые ячейки до первого дня
+  for (let i = 1; i < startDay; i++) {
+    html += '<div class="calendar-day-empty"></div>';
+  }
+  
+  // Дни месяца
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayTasks = tasksByDay[day] || [];
     const completed = dayTasks.filter(t => t.completed).length;
     const total = dayTasks.length || 3;
-    const percent = Math.round((completed / total) * 100);
-    last7Days.push({ date: dateStr, percent, day: date.toLocaleDateString('ru-RU', { weekday: 'short' }) });
+    
+    let statusClass = '';
+    if (dayTasks.length > 0) {
+      if (completed === total) statusClass = 'complete-green';
+      else if (completed >= 2) statusClass = 'complete-yellow';
+      else if (completed >= 1) statusClass = 'complete-orange';
+      else statusClass = 'complete-red';
+    }
+    
+    const isToday = day === today.getDate();
+    
+    html += `
+      <div class="calendar-day ${statusClass} ${isToday ? 'today' : ''}" data-date="${dateStr}">
+        <span class="calendar-day-num">${day}</span>
+        <span class="calendar-day-tasks">${completed}/${total}</span>
+      </div>
+    `;
   }
   
-  chartBars.innerHTML = last7Days.map(day => `
-    <div class="chart-bar-container">
-      <div class="chart-bar" style="height: ${day.percent}%"></div>
-    </div>
-  `).join('');
+  html += '</div>';
+  calendar.innerHTML = html;
   
-  chartLabels.innerHTML = last7Days.map(day => `
-    <span class="chart-label">${day.day}</span>
-  `).join('');
+  // Обработчики кликов
+  calendar.querySelectorAll('.calendar-day').forEach(el => {
+    el.addEventListener('click', () => {
+      const date = el.dataset.date;
+      const dayTasks = tasksByDay[new Date(date).getDate()] || [];
+      openDayTasksModal(date, dayTasks);
+    });
+  });
+  
+  updateStats();
 }
 
-function formatDate(dateStr) {
+function formatDateFull(dateStr) {
   const date = new Date(dateStr);
-  const options = { weekday: 'long', day: 'numeric', month: 'short' };
-  return date.toLocaleDateString('ru-RU', options);
+  return date.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // === КНИГИ ===
@@ -359,7 +473,6 @@ async function saveBook() {
     created_at: new Date().toISOString()
   };
   
-  // Снимаем флаг current с других книг
   const books = await db.getAll('books') || [];
   for (const b of books) {
     b.is_current = false;
@@ -425,13 +538,7 @@ async function addBookPage(bookId) {
     
     loadBooks();
     notifications.showToast('+10 страниц', 'success');
-    
-    // Проверка достижения
-    if (book.pages_read >= 10 && !book.achievement_unlocked) {
-      await db.unlockAchievement('first-book');
-      notifications.showToast('🏆 Достижение: Первая книга!', 'success');
-      book.achievement_unlocked = true;
-    }
+    checkAchievements();
   }
 }
 
@@ -547,6 +654,7 @@ async function completeFocusSession() {
   
   appState.focusTime = 25 * 60;
   updateTimerDisplay('focus-time', appState.focusTime);
+  checkAchievements();
 }
 
 function updateTimerDisplay(elementId, seconds) {
@@ -642,6 +750,7 @@ async function learnWords() {
   }
   
   loadWords();
+  checkAchievements();
   notifications.showToast('5 слов изучено!', 'success');
 }
 
@@ -659,6 +768,49 @@ async function loadWords() {
   }
 }
 
+// === ЖИЗНЕННЫЕ ПРИНЦИПЫ ===
+async function addPrinciple() {
+  const input = document.getElementById('principle-input');
+  const text = input.value.trim();
+  
+  if (!text) return;
+  
+  const principle = {
+    id: `principle_${Date.now()}`,
+    text,
+    created_at: new Date().toISOString()
+  };
+  
+  await db.put('principles', principle);
+  input.value = '';
+  loadPrinciples();
+  notifications.showToast('Принцип добавлен', 'success');
+}
+
+async function loadPrinciples() {
+  const principles = await db.getAll('principles') || [];
+  const list = document.getElementById('principles-list');
+  
+  if (!list) return;
+  
+  if (principles.length === 0) {
+    list.innerHTML = '<p class="empty-state">Пока нет принципов</p>';
+    return;
+  }
+  
+  list.innerHTML = principles.map(p => `
+    <div class="principle-item">
+      <span class="principle-text">${p.text}</span>
+      <button class="btn-delete" onclick="deletePrinciple('${p.id}')">&times;</button>
+    </div>
+  `).join('');
+}
+
+window.deletePrinciple = async function(id) {
+  await db.delete('principles', id);
+  loadPrinciples();
+};
+
 // === КАЛЕНДАРЬ ЖИЗНИ ===
 async function saveBirthDate() {
   const input = document.getElementById('birth-date-input');
@@ -671,7 +823,6 @@ async function saveBirthDate() {
   
   appState.userProfile.birthDate = birthDate;
   
-  // Сохраняем в профиль
   const profile = await db.get('users', 'current') || { id: 'current' };
   profile.birthDate = birthDate;
   await db.put('users', profile);
@@ -684,7 +835,6 @@ function initLifeCalendar() {
   const grid = document.getElementById('life-grid');
   if (!grid) return;
   
-  // Получаем дату рождения из профиля или используем дефолт
   let birthDate;
   if (appState.userProfile.birthDate) {
     birthDate = new Date(appState.userProfile.birthDate);
@@ -694,8 +844,8 @@ function initLifeCalendar() {
   }
   
   const now = new Date();
+  const totalWeeks = 80 * 52; // 4160 недель до 80 лет
   const weeksInLife = Math.floor((now - birthDate) / (7 * 24 * 60 * 60 * 1000));
-  const totalWeeks = 4000;
   const weeksLeft = totalWeeks - weeksInLife;
   const lifePercent = Math.round((weeksInLife / totalWeeks) * 100);
   
@@ -709,13 +859,11 @@ function initLifeCalendar() {
   document.getElementById('weeks-left').textContent = weeksLeft;
   document.getElementById('birth-date-display').textContent = birthDate.toLocaleDateString('ru-RU');
   
-  // Обновляем поле ввода
   const birthInput = document.getElementById('birth-date-input');
   if (birthInput && !birthInput.value) {
     birthInput.value = appState.userProfile.birthDate || '';
   }
   
-  // Генерация сетки
   grid.innerHTML = '';
   for (let i = 0; i < totalWeeks; i++) {
     const week = document.createElement('div');
@@ -739,15 +887,30 @@ async function loadProfile() {
     appState.userProfile = {
       fullName: profile.fullName || '',
       birthDate: profile.birthDate || null,
-      email: profile.email || 'user@example.com'
+      email: profile.email || 'user@example.com',
+      avatar: profile.avatar || null
     };
   }
   
-  // Обновляем UI
   document.getElementById('profile-name-display').textContent = appState.userProfile.fullName || 'Гость';
   document.getElementById('profile-email').textContent = appState.userProfile.email;
   
-  // Статистика
+  if (appState.userProfile.avatar) {
+    const img = document.getElementById('avatar-img');
+    const emoji = document.getElementById('avatar-emoji');
+    img.src = appState.userProfile.avatar;
+    img.style.display = 'block';
+    emoji.style.display = 'none';
+  }
+  
+  updateProfileStats();
+  
+  if (appState.userProfile.birthDate) {
+    initLifeCalendar();
+  }
+}
+
+async function updateProfileStats() {
   const tasks = await db.getAll('daily_tasks');
   const words = await db.getAll('words');
   const focus = await db.getAll('focus_sessions');
@@ -755,11 +918,6 @@ async function loadProfile() {
   document.getElementById('total-tasks').textContent = tasks.filter(t => t.completed).length;
   document.getElementById('total-words').textContent = words.length;
   document.getElementById('focus-minutes').textContent = focus.reduce((sum, s) => sum + (s.duration || 0), 0);
-  
-  // Если есть дата рождения, обновляем календарь
-  if (appState.userProfile.birthDate) {
-    initLifeCalendar();
-  }
 }
 
 async function saveProfile() {
@@ -780,7 +938,6 @@ async function saveProfile() {
   document.getElementById('profile-email').textContent = email;
   document.getElementById('profile-edit-form').style.display = 'none';
   
-  // Обновляем календарь если изменилась дата рождения
   if (birthDate) {
     initLifeCalendar();
   }
@@ -788,6 +945,170 @@ async function saveProfile() {
   notifications.showToast('Профиль сохранён', 'success');
 }
 
+function handleAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    const base64 = event.target.result;
+    appState.userProfile.avatar = base64;
+    
+    const img = document.getElementById('avatar-img');
+    const emoji = document.getElementById('avatar-emoji');
+    img.src = base64;
+    img.style.display = 'block';
+    emoji.style.display = 'none';
+    
+    await db.put('users', appState.userProfile);
+    notifications.showToast('Аватар сохранён', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+// === ДОСТИЖЕНИЯ ===
+async function loadAchievements() {
+  const achievements = await db.getAchievements();
+  const unlockedTypes = achievements.map(a => a.achievement_type);
+  
+  // Получаем статистику
+  const tasks = await db.getAll('daily_tasks');
+  const completedTasks = tasks.filter(t => t.completed).length;
+  
+  const words = await db.getAll('words');
+  
+  const focus = await db.getAll('focus_sessions');
+  const focusMinutes = focus.reduce((sum, s) => sum + (s.duration || 0), 0);
+  
+  const books = await db.getAll('books');
+  const totalPages = books.reduce((sum, b) => sum + (b.pages_read || 0), 0);
+  
+  const gratitudes = await db.getAll('gratitude');
+  
+  // Водные дни (уникальные даты)
+  const waterLogs = await db.getAll('water_log');
+  const waterDays = new Set(waterLogs.map(w => w.date)).size;
+  
+  document.querySelectorAll('.achievement').forEach(el => {
+    const type = el.dataset.achievement;
+    const config = ACHIEVEMENTS[type];
+    if (!config) return;
+    
+    const progressEl = el.querySelector('.progress-fill');
+    const progressText = el.querySelector('.achievement-progress-text');
+    
+    let current = 0;
+    switch (config.type) {
+      case 'tasks': current = completedTasks; break;
+      case 'water_days': current = waterDays; break;
+      case 'focus_minutes': current = focusMinutes; break;
+      case 'words': current = words.length; break;
+      case 'pages': current = totalPages; break;
+      case 'gratitudes': current = gratitudes.length; break;
+    }
+    
+    const percent = Math.min((current / config.required) * 100, 100);
+    progressEl.style.width = `${percent}%`;
+    progressText.textContent = `${current}/${config.required}`;
+    
+    if (unlockedTypes.includes(type)) {
+      el.classList.add('unlocked');
+    }
+  });
+}
+
+async function checkAchievements() {
+  const tasks = await db.getAll('daily_tasks');
+  const completedTasks = tasks.filter(t => t.completed).length;
+  
+  if (completedTasks >= 1) {
+    await db.unlockAchievement('first-task');
+  }
+  if (completedTasks >= 10) {
+    await db.unlockAchievement('task-master-10');
+  }
+  
+  loadAchievements();
+}
+
+// === БАДЫ ===
+async function addSupplement() {
+  const nameInput = document.getElementById('supplement-name');
+  const timeInput = document.getElementById('supplement-time');
+  const daysInput = document.getElementById('supplement-days');
+  
+  const name = nameInput.value.trim();
+  const time = timeInput.value;
+  const days = daysInput.value;
+  
+  if (!name) {
+    notifications.showToast('Введите название', 'warning');
+    return;
+  }
+  
+  const supplement = {
+    id: `supplement_${Date.now()}`,
+    name,
+    time: time || '09:00',
+    days: days ? days.split(',').map(d => parseInt(d.trim())).filter(d => d >= 1 && d <= 365) : [],
+    taken_today: false,
+    created_at: new Date().toISOString()
+  };
+  
+  await db.put('supplements', supplement);
+  
+  nameInput.value = '';
+  timeInput.value = '';
+  daysInput.value = '';
+  
+  loadSupplements();
+  notifications.showToast('Добавка добавлена', 'success');
+}
+
+async function loadSupplements() {
+  const supplements = await db.getSupplements();
+  const tbody = document.getElementById('supplements-body');
+  
+  if (!tbody) return;
+  
+  if (supplements.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Нет добавок</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = supplements.map(s => {
+    const dayNum = new Date().getDay(); // 0-6
+    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+    const isToday = s.days.length === 0 || s.days.includes(dayOfYear);
+    
+    return `
+      <tr>
+        <td>${s.name}</td>
+        <td>${s.time}</td>
+        <td>${s.days.length > 0 ? s.days.join(', ') : 'Ежедневно'}</td>
+        <td>
+          <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
+        </td>
+        <td>
+          <button class="btn-delete-sm" onclick="deleteSupplement('${s.id}')">&times;</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
+    checkbox.addEventListener('change', async () => {
+      await db.toggleSupplement(checkbox.dataset.id);
+    });
+  });
+}
+
+window.deleteSupplement = async function(id) {
+  await db.delete('supplements', id);
+  loadSupplements();
+};
+
+// === БЛАГОДАРНОСТЬ ===
 async function saveGratitude() {
   const input = document.getElementById('gratitude-input');
   const text = input.value.trim();
@@ -797,6 +1118,7 @@ async function saveGratitude() {
   await db.saveGratitude(text);
   input.value = '';
   loadGratitudes();
+  checkAchievements();
   notifications.showToast('Благодарность сохранена', 'success');
 }
 
@@ -809,52 +1131,7 @@ async function loadGratitudes() {
   }
 }
 
-async function addSupplement() {
-  const input = document.getElementById('supplement-name');
-  const name = input.value.trim();
-  
-  if (!name) return;
-  
-  await db.saveSupplement(name);
-  input.value = '';
-  loadSupplements();
-  notifications.showToast('Добавка добавлена', 'success');
-}
-
-async function loadSupplements() {
-  const supplements = await db.getSupplements();
-  const tbody = document.getElementById('supplements-body');
-  
-  if (tbody) {
-    tbody.innerHTML = supplements.map(s => `
-      <tr>
-        <td>${s.name}</td>
-        <td>
-          <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
-        </td>
-      </tr>
-    `).join('');
-    
-    tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
-      checkbox.addEventListener('change', async () => {
-        await db.toggleSupplement(checkbox.dataset.id);
-      });
-    });
-  }
-}
-
-async function loadAchievements() {
-  const achievements = await db.getAchievements();
-  const unlockedTypes = achievements.map(a => a.achievement_type);
-  
-  document.querySelectorAll('.achievement').forEach(el => {
-    const type = el.dataset.achievement;
-    if (unlockedTypes.includes(type)) {
-      el.classList.add('unlocked');
-    }
-  });
-}
-
+// === СИНХРОНИЗАЦИЯ ===
 async function syncData() {
   const btn = document.getElementById('syncBtn');
   btn.classList.add('syncing');
@@ -867,6 +1144,8 @@ async function syncData() {
   }, 1000);
 }
 
-// Глобальные функции для книг
+// Глобальные функции
 window.addBookPage = addBookPage;
 window.setCurrentBook = setCurrentBook;
+window.deletePrinciple = deletePrinciple;
+window.deleteSupplement = deleteSupplement;

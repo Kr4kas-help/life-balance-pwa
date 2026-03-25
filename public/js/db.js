@@ -1,6 +1,6 @@
 // db.js - Работа с локальной базой данных (IndexedDB) и синхронизация
 const DB_NAME = 'life-balance-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAMES = {
   USERS: 'users',
   DAILY_TASKS: 'daily_tasks',
@@ -13,7 +13,8 @@ const STORE_NAMES = {
   BOOKS: 'books',
   WALKS: 'walks',
   SUPPLEMENTS: 'supplements',
-  PENDING_SYNC: 'pending_sync'
+  PENDING_SYNC: 'pending_sync',
+  PRINCIPLES: 'principles'
 };
 
 class Database {
@@ -95,6 +96,10 @@ class Database {
 
         if (!db.objectStoreNames.contains(STORE_NAMES.PENDING_SYNC)) {
           db.createObjectStore(STORE_NAMES.PENDING_SYNC, { keyPath: 'id', autoIncrement: true });
+        }
+
+        if (!db.objectStoreNames.contains(STORE_NAMES.PRINCIPLES)) {
+          db.createObjectStore(STORE_NAMES.PRINCIPLES, { keyPath: 'id' });
         }
       };
     });
