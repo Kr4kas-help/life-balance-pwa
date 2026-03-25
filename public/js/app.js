@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadAchievements();
   await loadBooks();
   await loadContacts();
+  await loadWaterProgress();
   await initLifeCalendar();
   notifications.scheduleWaterReminder();
   
@@ -272,7 +273,21 @@ function initEventListeners() {
   // Вода
   const addWaterBtn = document.getElementById('add-water');
   if (addWaterBtn) {
-    addWaterBtn.addEventListener('click', addWater);
+    addWaterBtn.addEventListener('click', () => addWater('day'));
+  }
+  
+  // Вода утро/день/вечер
+  const waterMorning = document.getElementById('add-water-morning');
+  if (waterMorning) {
+    waterMorning.addEventListener('click', () => addWater('morning'));
+  }
+  const waterDay = document.getElementById('add-water-day');
+  if (waterDay) {
+    waterDay.addEventListener('click', () => addWater('day'));
+  }
+  const waterEvening = document.getElementById('add-water-evening');
+  if (waterEvening) {
+    waterEvening.addEventListener('click', () => addWater('evening'));
   }
 
   // === ФОКУС ===
@@ -375,6 +390,31 @@ function initEventListeners() {
   if (addContactBtn) {
     addContactBtn.addEventListener('click', () => {
       document.getElementById('contact-form').style.display = 'block';
+      contactPhotoBase64 = null;
+      updateContactPhotoPreview();
+    });
+  }
+  
+  // Фото контакта
+  const contactPhoto = document.getElementById('contact-photo');
+  if (contactPhoto) {
+    contactPhoto.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          contactPhotoBase64 = event.target.result;
+          updateContactPhotoPreview();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+  
+  const contactPhotoBtn = document.getElementById('contact-photo-btn');
+  if (contactPhotoBtn) {
+    contactPhotoBtn.addEventListener('click', () => {
+      document.getElementById('contact-photo').click();
     });
   }
   
@@ -390,6 +430,8 @@ function initEventListeners() {
   if (cancelContactBtn) {
     cancelContactBtn.addEventListener('click', () => {
       document.getElementById('contact-form').style.display = 'none';
+      contactPhotoBase64 = null;
+      updateContactPhotoPreview();
     });
   }
   
@@ -697,9 +739,17 @@ async function loadBooks() {
     const percent = book.total_pages > 0 ? Math.round((book.pages_read / book.total_pages) * 100) : 0;
     return `
       <div class="book-item ${book.is_current ? 'current' : ''}">
-        <div class="book-info">
-          <span class="book-title">${book.title}</span>
-          <span class="book-pages">${book.pages_read} / ${book.total_pages} стр.</span>
+        <div class="book-header">
+          <div class="book-info">
+            <span class="book-title">${book.title}</span>
+            <span class="book-pages">${book.pages_read} / ${book.total_pages} стр.</span>
+          </div>
+          <div class="book-menu">
+            <button class="book-menu-btn" onclick="toggleBookMenu('${book.id}')">⋮</button>
+            <div class="book-menu-dropdown" id="book-menu-${book.id}">
+              <button class="book-menu-item" onclick="deleteBook('${book.id}')">🗑️ Удалить</button>
+            </div>
+          </div>
         </div>
         <div class="book-progress-bar">
           <div class="book-progress-fill" style="width: ${percent}%"></div>
@@ -712,6 +762,30 @@ async function loadBooks() {
     `;
   }).join('');
 }
+
+window.toggleBookMenu = function(bookId) {
+  const menu = document.getElementById(`book-menu-${bookId}`);
+  if (menu) {
+    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+  }
+};
+
+window.deleteBook = async function(bookId) {
+  if (confirm('Вы уверены что хотите удалить эту книгу?')) {
+    await db.delete('books', bookId);
+    await loadBooks();
+    notifications.showToast('Книга удалена', 'success');
+  }
+  // Закрыть все меню
+  document.querySelectorAll('.book-menu-dropdown').forEach(m => m.style.display = 'none');
+};
+
+// Закрыть меню при клике вне
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.book-menu')) {
+    document.querySelectorAll('.book-menu-dropdown').forEach(m => m.style.display = 'none');
+  }
+});
 
 window.addBookPage = async function(bookId) {
   const books = await db.getAll('books') || [];
@@ -780,15 +854,53 @@ function resetExerciseTimer() {
   document.getElementById('start-exercise').textContent = 'Старт';
 }
 
-function addWater() {
-  const waterCount = document.getElementById('water-count');
-  const waterLevel = document.getElementById('water-level');
-  const current = parseInt(waterCount.textContent.split('/')[0]) || 0;
-  const newCount = Math.min(current + 250, 500);
+// Вода с разделением на утро/день/вечер
+const waterState = {
+  morning: 0,
+  day: 0,
+  evening: 0
+};
+
+async function loadWaterProgress() {
+  const today = new Date().toISOString().split('T')[0];
+  const logs = await db.getByIndex('water_log', 'date', today) || [];
   
-  waterCount.textContent = `${newCount}/500 мл`;
-  waterLevel.style.height = `${(newCount / 500) * 100}%`;
-  notifications.showToast('+250мл воды', 'success');
+  waterState.morning = logs.filter(l => l.period === 'morning').reduce((sum, l) => sum + l.amount, 0);
+  waterState.day = logs.filter(l => l.period === 'day').reduce((sum, l) => sum + l.amount, 0);
+  waterState.evening = logs.filter(l => l.period === 'evening').reduce((sum, l) => sum + l.amount, 0);
+  
+  const total = waterState.morning + waterState.day + waterState.evening;
+  const goal = 500;
+  const percent = Math.min((total / goal) * 100, 100);
+  
+  const waterLevel = document.getElementById('water-level');
+  const waterCount = document.getElementById('water-count');
+  const waterMorning = document.getElementById('water-morning');
+  const waterDay = document.getElementById('water-day');
+  const waterEvening = document.getElementById('water-evening');
+  
+  if (waterLevel) waterLevel.style.height = `${percent}%`;
+  if (waterCount) waterCount.textContent = `${total}/${goal} мл`;
+  if (waterMorning) waterMorning.textContent = waterState.morning;
+  if (waterDay) waterDay.textContent = waterState.day;
+  if (waterEvening) waterEvening.textContent = waterState.evening;
+}
+
+async function addWater(period) {
+  const amount = 250;
+  const log = {
+    id: `water_${Date.now()}`,
+    amount,
+    period,
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toISOString()
+  };
+  
+  await db.add('water_log', log);
+  await loadWaterProgress();
+  
+  const labels = { morning: 'Утро', day: 'День', evening: 'Вечер' };
+  notifications.showToast(`+${amount}мл (${labels[period]})`, 'success');
 }
 
 // === ФОКУС ===
@@ -918,30 +1030,48 @@ async function learnWords() {
   const shuffled = allWords.sort(() => 0.5 - Math.random());
   const newWords = shuffled.slice(0, 5);
   
-  appState.wordsToday = newWords;
+  appState.wordsToday = newWords.map(w => ({ ...w, learned: false }));
   
   container.innerHTML = newWords.map((item, index) => `
     <div class="word-card-day">
-      <span class="word-number">${index + 1}.</span>
+      <label class="checkbox-container word-checkbox">
+        <input type="checkbox" class="word-check" data-index="${index}">
+        <span class="checkmark"></span>
+      </label>
       <div class="word-info">
+        <span class="word-number">${index + 1}.</span>
         <span class="word-text">${item.word}</span>
         <span class="word-translation">${item.translation}</span>
       </div>
     </div>
   `).join('');
   
-  for (const word of newWords) {
-    await db.saveWord({
-      word: word.word,
-      translation: word.translation,
-      theme: 'daily',
-      date: new Date().toISOString().split('T')[0]
+  // Обработчики чекбоксов
+  container.querySelectorAll('.word-check').forEach(checkbox => {
+    checkbox.addEventListener('change', async (e) => {
+      const index = e.target.dataset.index;
+      const word = appState.wordsToday[index];
+      
+      if (e.target.checked && !word.learned) {
+        word.learned = true;
+        await db.saveWord({
+          word: word.word,
+          translation: word.translation,
+          theme: 'daily',
+          date: new Date().toISOString().split('T')[0],
+          learned: true
+        });
+        await loadWords();
+        await checkAchievements();
+        notifications.showToast('Слово добавлено в историю!', 'success');
+      } else if (!e.target.checked && word.learned) {
+        word.learned = false;
+        // Можно удалить из истории если нужно
+      }
     });
-  }
+  });
   
-  await loadWords();
-  await checkAchievements();
-  notifications.showToast('5 слов изучено!', 'success');
+  notifications.showToast('5 слов готово к изучению!', 'success');
 }
 
 async function loadWords() {
@@ -1317,6 +1447,9 @@ window.deleteSupplement = async function(id) {
 };
 
 // === КОНТАКТЫ ===
+// Контакты с фото
+let contactPhotoBase64 = null;
+
 async function loadContacts() {
   const contacts = await db.getContacts() || [];
   const list = document.getElementById('contacts-list');
@@ -1330,7 +1463,9 @@ async function loadContacts() {
   
   list.innerHTML = contacts.map(c => `
     <div class="contact-item" onclick="openContactModal('${c.id}')">
-      <div class="contact-avatar">${(c.fio || 'C')[0].toUpperCase()}</div>
+      <div class="contact-avatar">
+        ${c.photo ? `<img src="${c.photo}" alt="${c.fio || 'C'}">` : (c.fio || 'C')[0].toUpperCase()}
+      </div>
       <div class="contact-info">
         <span class="contact-name">${c.fio || 'Без имени'}</span>
         <span class="contact-phone">${c.phone || ''}</span>
@@ -1355,10 +1490,20 @@ async function saveContact() {
     return;
   }
   
-  const contact = { fio, phone, organization: org, job, location, note, extra };
+  const contact = { 
+    fio, 
+    phone, 
+    organization: org, 
+    job, 
+    location, 
+    note, 
+    extra,
+    photo: contactPhotoBase64
+  };
   console.log('[APP] Saving contact:', contact);
   await db.saveContact(contact);
   
+  // Сброс формы и фото
   if (document.getElementById('contact-fio')) document.getElementById('contact-fio').value = '';
   if (document.getElementById('contact-phone')) document.getElementById('contact-phone').value = '';
   if (document.getElementById('contact-org')) document.getElementById('contact-org').value = '';
@@ -1366,10 +1511,23 @@ async function saveContact() {
   if (document.getElementById('contact-location')) document.getElementById('contact-location').value = '';
   if (document.getElementById('contact-note')) document.getElementById('contact-note').value = '';
   if (document.getElementById('contact-extra')) document.getElementById('contact-extra').value = '';
+  contactPhotoBase64 = null;
+  updateContactPhotoPreview();
   document.getElementById('contact-form').style.display = 'none';
   
   await loadContacts();
   notifications.showToast('Контакт сохранён', 'success');
+}
+
+function updateContactPhotoPreview() {
+  const preview = document.getElementById('contact-avatar-preview');
+  if (!preview) return;
+  
+  if (contactPhotoBase64) {
+    preview.innerHTML = `<img src="${contactPhotoBase64}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+  } else {
+    preview.innerHTML = '<span>📷</span>';
+  }
 }
 
 async function searchContacts() {

@@ -216,6 +216,20 @@
               <h3>0.5л воды</h3>
             </div>
             <div class="task-body">
+              <div class="water-sections">
+                <div class="water-section">
+                  <span class="water-label">🌅 Утро</span>
+                  <button class="btn btn-water-sm" id="add-water-morning">+250мл</button>
+                </div>
+                <div class="water-section">
+                  <span class="water-label">☀️ День</span>
+                  <button class="btn btn-water-sm" id="add-water-day">+250мл</button>
+                </div>
+                <div class="water-section">
+                  <span class="water-label">🌙 Вечер</span>
+                  <button class="btn btn-water-sm" id="add-water-evening">+250мл</button>
+                </div>
+              </div>
               <div class="water-glass">
                 <div class="glass-container">
                   <div class="glass" id="water-glass">
@@ -224,7 +238,9 @@
                   <span class="glass-label" id="water-count">0/500 мл</span>
                 </div>
               </div>
-              <button class="btn btn-primary btn-water" id="add-water">+250мл</button>
+              <div class="water-summary" id="water-summary">
+                <span>Утро: <b id="water-morning">0</b>мл | День: <b id="water-day">0</b>мл | Вечер: <b id="water-evening">0</b>мл</span>
+              </div>
             </div>
           </div>
         </div>
@@ -389,6 +405,13 @@
               <button class="btn btn-primary btn-full" id="add-contact-btn">+ Новый контакт</button>
               
               <div class="contact-form" id="contact-form" style="display: none;">
+                <div class="contact-photo-upload">
+                  <div class="contact-avatar-preview" id="contact-avatar-preview">
+                    <span>📷</span>
+                  </div>
+                  <input type="file" id="contact-photo" class="file-input" accept="image/*" style="display: none;">
+                  <button class="btn btn-outline btn-sm" id="contact-photo-btn">Выбрать фото</button>
+                </div>
                 <input type="text" id="contact-fio" class="input-field" placeholder="ФИО">
                 <input type="tel" id="contact-phone" class="input-field" placeholder="Телефон">
                 <input type="text" id="contact-org" class="input-field" placeholder="Организация">

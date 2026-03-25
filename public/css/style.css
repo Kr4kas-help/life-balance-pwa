@@ -2277,6 +2277,13 @@ body {
   font-size: 18px;
   font-weight: 700;
   color: white;
+  overflow: hidden;
+}
+
+.contact-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .contact-info {
@@ -2292,6 +2299,187 @@ body {
 }
 
 .contact-phone, .contact-org {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.contact-photo-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.contact-avatar-preview {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-elevated);
+  border: 2px dashed var(--border-light);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  overflow: hidden;
+}
+
+.contact-avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 12px;
+}
+
+/* Book Menu */
+.book-item {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.book-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.book-menu {
+  position: relative;
+}
+
+.book-menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.book-menu-btn:hover {
+  color: var(--text-primary);
+}
+
+.book-menu-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  min-width: 120px;
+}
+
+.book-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--danger);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.book-menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+/* Water Sections */
+.water-sections {
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.water-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.water-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.btn-water-sm {
+  padding: 8px 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-water-sm:active {
+  background: var(--accent-hover);
+}
+
+.water-summary {
+  margin-top: 12px;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.water-summary b {
+  color: var(--accent);
+}
+
+/* Word Checkbox */
+.word-card-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+}
+
+.word-checkbox {
+  flex-shrink: 0;
+}
+
+.word-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.word-number {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 24px;
+}
+
+.word-text {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.word-translation {
   font-size: 12px;
   color: var(--text-muted);
 }
