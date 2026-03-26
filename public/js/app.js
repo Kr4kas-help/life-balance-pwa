@@ -175,6 +175,11 @@ const appState = {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[APP] DOMContentLoaded');
   
+  // Инициализация авторизации
+  if (typeof initAuth !== 'undefined') {
+    initAuth();
+  }
+
   // Ждём инициализации БД
   if (typeof db !== 'undefined' && db.ready) {
     await db.ready;
