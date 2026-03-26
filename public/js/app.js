@@ -458,12 +458,23 @@ function initEventListeners() {
       await addSupplement();
     });
   }
-  
+
   const syncBtn = document.getElementById('syncBtn');
   if (syncBtn) {
     syncBtn.addEventListener('click', syncData);
   }
-  
+
+  // Делегирование событий для чекбоксов добавок
+  const supplementsBody = document.getElementById('supplements-body');
+  if (supplementsBody) {
+    supplementsBody.addEventListener('change', async (e) => {
+      if (e.target.classList.contains('supplement-check')) {
+        await db.toggleSupplement(e.target.dataset.id);
+        await loadSupplements();
+      }
+    });
+  }
+
   // === КОНТАКТЫ ===
   const addContactBtn = document.getElementById('add-contact-btn');
   if (addContactBtn) {
@@ -1632,12 +1643,12 @@ async function addSupplement() {
 
 async function loadSupplements() {
   console.log('[APP] loadSupplements called');
-  
+
   try {
     // Используем db.getAll с правильным именем хранилища
     const supplements = await db.getAll('supplements') || [];
     console.log('[APP] Loaded supplements:', supplements);
-    
+
     const tbody = document.getElementById('supplements-body');
 
     if (!tbody) {
@@ -1667,12 +1678,6 @@ async function loadSupplements() {
       `;
     }).filter(Boolean).join('');
 
-    tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
-      checkbox.addEventListener('change', async () => {
-        await db.toggleSupplement(checkbox.dataset.id);
-        await loadSupplements();
-      });
-    });
   } catch (error) {
     console.error('[APP] Error loading supplements:', error);
     // Если хранилище не найдено - показываем пустое состояние
