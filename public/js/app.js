@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Сначала инициализируем авторизацию
   if (typeof initAuth !== 'undefined') {
     console.log('[APP] Calling initAuth...');
+    // Вызываем сразу, initAuth сам проверит готовность DOM
     initAuth();
   } else {
     console.warn('[APP] initAuth not found!');

@@ -29,6 +29,13 @@ const authState = {
 function initAuth() {
   console.log('[AUTH] initAuth called');
   
+  // Ждём полного загрузки DOM
+  if (document.readyState === 'loading') {
+    console.log('[AUTH] Waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', initAuth);
+    return;
+  }
+  
   // Проверяем сохранённую сессию
   const savedUser = localStorage.getItem('user');
   if (savedUser) {
@@ -51,27 +58,44 @@ function initAuth() {
     hideAuthScreen();
   }
   
-  // Переключатель вход/регистрация
-  setupAuthTabs();
-  
-  // Формы
-  setupAuthForms();
-  
-  // Гостевой режим
-  setupGuestMode();
-  
-  // Кнопка выхода
-  setupLogout();
+  // Даём время элементам загрузиться
+  setTimeout(() => {
+    console.log('[AUTH] Setting up event listeners...');
+    
+    // Переключатель вход/регистрация
+    setupAuthTabs();
+    
+    // Формы
+    setupAuthForms();
+    
+    // Гостевой режим
+    setupGuestMode();
+    
+    // Кнопка выхода
+    setupLogout();
+    
+    console.log('[AUTH] Event listeners set up complete');
+  }, 300);
 }
 
 function setupAuthTabs() {
+  console.log('[AUTH] setupAuthTabs called');
+  
   const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
   const registerTab = document.querySelector('.auth-tab[data-tab="register"]');
   const loginForm = document.getElementById('login-form');
   const registerForm = document.getElementById('register-form');
   
+  console.log('[AUTH] Elements found:', {
+    loginTab: !!loginTab,
+    registerTab: !!registerTab,
+    loginForm: !!loginForm,
+    registerForm: !!registerForm
+  });
+  
   if (loginTab) {
     loginTab.addEventListener('click', () => {
+      console.log('[AUTH] Login tab clicked');
       loginTab.classList.add('active');
       if (registerTab) registerTab.classList.remove('active');
       if (loginForm) loginForm.style.display = 'flex';
@@ -81,6 +105,7 @@ function setupAuthTabs() {
   
   if (registerTab) {
     registerTab.addEventListener('click', () => {
+      console.log('[AUTH] Register tab clicked');
       registerTab.classList.add('active');
       if (loginTab) loginTab.classList.remove('active');
       if (registerForm) registerForm.style.display = 'flex';
@@ -90,41 +115,61 @@ function setupAuthTabs() {
 }
 
 function setupAuthForms() {
+  console.log('[AUTH] setupAuthForms called');
+  
   // Форма входа
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
+    console.log('[AUTH] Login form found, adding submit listener');
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      console.log('[AUTH] Login form submitted');
       await handleLogin();
     });
+  } else {
+    console.error('[AUTH] Login form not found!');
   }
   
   // Форма регистрации
   const registerForm = document.getElementById('register-form');
   if (registerForm) {
+    console.log('[AUTH] Register form found, adding submit listener');
     registerForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      console.log('[AUTH] Register form submitted');
       await handleRegister();
     });
+  } else {
+    console.error('[AUTH] Register form not found!');
   }
 }
 
 function setupGuestMode() {
+  console.log('[AUTH] setupGuestMode called');
+  
   const guestBtn = document.getElementById('continue-guest');
   if (guestBtn) {
+    console.log('[AUTH] Guest button found, adding click listener');
     guestBtn.addEventListener('click', () => {
-      console.log('[AUTH] Guest mode selected');
+      console.log('[AUTH] Guest button clicked');
       authState.isGuest = true;
       // Не сохраняем в localStorage - гость только на эту сессию
       hideAuthScreen();
     });
+  } else {
+    console.error('[AUTH] Guest button not found!');
   }
 }
 
 function setupLogout() {
+  console.log('[AUTH] setupLogout called');
+  
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
+    console.log('[AUTH] Logout button found, adding click listener');
     logoutBtn.addEventListener('click', handleLogout);
+  } else {
+    console.error('[AUTH] Logout button not found!');
   }
 }
 
