@@ -1,5 +1,5 @@
 // Service Worker для офлайн-работы PWA
-const CACHE_NAME = 'life-balance-v8';
+const CACHE_NAME = 'life-balance-v9';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

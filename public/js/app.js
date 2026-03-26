@@ -1581,19 +1581,23 @@ async function checkAchievements() {
 
 // === БАДЫ ===
 async function addSupplement() {
+  console.log('[APP] addSupplement called');
+  
   const nameInput = document.getElementById('supplement-name');
   const timeInput = document.getElementById('supplement-time');
   const daysInput = document.getElementById('supplement-days');
-  
+
   const name = nameInput?.value.trim();
   const time = timeInput?.value || '09:00';
   const days = daysInput?.value;
-  
+
+  console.log('[APP] Input values:', { name, time, days });
+
   if (!name) {
     notifications.showToast('Введите название', 'warning');
     return;
   }
-  
+
   const supplement = {
     id: `supplement_${Date.now()}`,
     name,
@@ -1602,52 +1606,79 @@ async function addSupplement() {
     taken_today: false,
     created_at: new Date().toISOString()
   };
-  
-  await db.saveSupplement(supplement);
-  
-  if (nameInput) nameInput.value = '';
-  if (timeInput) timeInput.value = '';
-  if (daysInput) daysInput.value = '';
-  
-  await loadSupplements();
-  notifications.showToast('Добавка добавлена', 'success');
+
+  console.log('[APP] Supplement to save:', supplement);
+
+  try {
+    // Используем db.add вместо db.saveSupplement
+    await db.add('supplements', supplement);
+    console.log('[APP] Supplement saved successfully');
+
+    if (nameInput) nameInput.value = '';
+    if (timeInput) timeInput.value = '';
+    if (daysInput) daysInput.value = '';
+
+    await loadSupplements();
+    notifications.showToast('Добавка добавлена', 'success');
+  } catch (error) {
+    console.error('[APP] Error saving supplement:', error);
+    notifications.showToast('Ошибка сохранения', 'error');
+  }
 }
 
 async function loadSupplements() {
-  const supplements = await db.getSupplements() || [];
-  const tbody = document.getElementById('supplements-body');
+  console.log('[APP] loadSupplements called');
   
-  if (!tbody) return;
-  
-  if (supplements.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Нет добавок</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = supplements.map(s => `
-    <tr>
-      <td>${s.name}</td>
-      <td>${s.time}</td>
-      <td>${s.days.length > 0 ? s.days.join(', ') : 'Ежедневно'}</td>
-      <td>
-        <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
-      </td>
-      <td>
-        <button class="btn-delete-sm" onclick="deleteSupplement('${s.id}')">&times;</button>
-      </td>
-    </tr>
-  `).join('');
-  
-  tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
-    checkbox.addEventListener('change', async () => {
-      await db.toggleSupplement(checkbox.dataset.id);
+  try {
+    const supplements = await db.getAll('supplements') || [];
+    console.log('[APP] Loaded supplements:', supplements);
+    
+    const tbody = document.getElementById('supplements-body');
+
+    if (!tbody) {
+      console.error('[APP] supplements-body element not found');
+      return;
+    }
+
+    if (supplements.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Нет добавок</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = supplements.map(s => `
+      <tr>
+        <td>${s.name}</td>
+        <td>${s.time}</td>
+        <td>${s.days.length > 0 ? s.days.join(', ') : 'Ежедневно'}</td>
+        <td>
+          <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
+        </td>
+        <td>
+          <button class="btn-delete-sm" onclick="deleteSupplement('${s.id}')">&times;</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
+      checkbox.addEventListener('change', async () => {
+        await db.toggleSupplement(checkbox.dataset.id);
+        await loadSupplements();
+      });
     });
-  });
+  } catch (error) {
+    console.error('[APP] Error loading supplements:', error);
+  }
 }
 
 window.deleteSupplement = async function(id) {
-  await db.deleteSupplement(id);
-  await loadSupplements();
+  console.log('[APP] deleteSupplement called, id:', id);
+  try {
+    await db.delete('supplements', id);
+    await loadSupplements();
+    notifications.showToast('Добавка удалена', 'success');
+  } catch (error) {
+    console.error('[APP] Error deleting supplement:', error);
+  }
 };
 
 // === КОНТАКТЫ ===
