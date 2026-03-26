@@ -42,14 +42,17 @@ function initAuth() {
     console.log('[AUTH] Guest mode');
   }
   
-  // Показываем экран авторизации если нет пользователя
-  if (!authState.user && !authState.isGuest) {
-    console.log('[AUTH] Showing auth screen');
-    showAuthScreen();
-  } else {
-    console.log('[AUTH] Hiding auth screen, user logged in');
-    hideAuthScreen();
-  }
+  // Даём время CSS загрузиться
+  setTimeout(() => {
+    // Показываем экран авторизации если нет пользователя
+    if (!authState.user && !authState.isGuest) {
+      console.log('[AUTH] Showing auth screen');
+      showAuthScreen();
+    } else {
+      console.log('[AUTH] Hiding auth screen, user logged in');
+      hideAuthScreen();
+    }
+  }, 50);
   
   // Переключатель вход/регистрация
   setTimeout(() => {
@@ -90,7 +93,7 @@ function initAuth() {
 
     // Кнопка выхода
     document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
-  }, 100);
+  }, 200);
 }
 
 function showAuthScreen() {
