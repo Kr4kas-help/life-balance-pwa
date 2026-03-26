@@ -2787,13 +2787,15 @@ body {
   position: fixed;
   inset: 0;
   background: linear-gradient(135deg, #1a1a2e 0%, #0a0a0a 100%);
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: center;
   z-index: 10000;
   padding: 16px;
-  visibility: visible;
-  opacity: 1;
+}
+
+.auth-screen[style*="display: flex"] {
+  display: flex !important;
 }
 
 .auth-container {
@@ -2861,7 +2863,7 @@ body {
 }
 
 .auth-form {
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 16px;
 }
@@ -2947,6 +2949,13 @@ body {
 .auth-guest-btn:hover {
   background: var(--bg-elevated);
   color: var(--text-primary);
+}
+
+.auth-guest-btn:active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  transform: scale(0.98);
 }
 
 .profile-actions {

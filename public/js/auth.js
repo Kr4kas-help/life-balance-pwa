@@ -28,27 +28,27 @@ const authState = {
 // Инициализация авторизации
 function initAuth() {
   console.log('[AUTH] initAuth called');
-  
+
   // Ждём полного загрузки DOM
   if (document.readyState === 'loading') {
     console.log('[AUTH] Waiting for DOMContentLoaded...');
     document.addEventListener('DOMContentLoaded', initAuth);
     return;
   }
-  
+
   // Проверяем сохранённую сессию
   const savedUser = localStorage.getItem('user');
   if (savedUser) {
     authState.user = JSON.parse(savedUser);
     console.log('[AUTH] User restored from localStorage:', authState.user?.email);
   }
-  
+
   const isGuest = localStorage.getItem('isGuest');
   if (isGuest === 'true') {
     authState.isGuest = true;
     console.log('[AUTH] Guest mode restored');
   }
-  
+
   // Показываем экран авторизации если нет пользователя
   if (!authState.user && !authState.isGuest) {
     console.log('[AUTH] Showing auth screen');
@@ -57,103 +57,133 @@ function initAuth() {
     console.log('[AUTH] User already logged in, hiding auth screen');
     hideAuthScreen();
   }
-  
-  // Даём время элементам загрузиться
-  setTimeout(() => {
-    console.log('[AUTH] Setting up event listeners...');
-    
-    // Переключатель вход/регистрация
-    setupAuthTabs();
-    
-    // Формы
-    setupAuthForms();
-    
-    // Гостевой режим
-    setupGuestMode();
-    
-    // Кнопка выхода
-    setupLogout();
-    
-    console.log('[AUTH] Event listeners set up complete');
-  }, 300);
+
+  // Настраиваем обработчики событий
+  setupAuthTabs();
+  setupAuthForms();
+  setupGuestMode();
+  setupLogout();
+
+  console.log('[AUTH] Event listeners set up complete');
 }
 
 function setupAuthTabs() {
   console.log('[AUTH] setupAuthTabs called');
-  
+
   const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
   const registerTab = document.querySelector('.auth-tab[data-tab="register"]');
   const loginForm = document.getElementById('login-form');
   const registerForm = document.getElementById('register-form');
-  
-  console.log('[AUTH] Elements found:', {
+
+  console.log('[AUTH] Elements:', {
     loginTab: !!loginTab,
     registerTab: !!registerTab,
     loginForm: !!loginForm,
     registerForm: !!registerForm
   });
-  
-  if (loginTab) {
-    loginTab.addEventListener('click', () => {
-      console.log('[AUTH] Login tab clicked');
+
+  // Переключение на ВХОД
+  function showLogin() {
+    console.log('[AUTH] showLogin');
+    if (loginTab) {
       loginTab.classList.add('active');
-      if (registerTab) registerTab.classList.remove('active');
-      if (loginForm) loginForm.style.display = 'flex';
-      if (registerForm) registerForm.style.display = 'none';
-    });
+      loginTab.style.background = 'var(--accent)';
+      loginTab.style.borderColor = 'var(--accent)';
+      loginTab.style.color = 'white';
+    }
+    if (registerTab) {
+      registerTab.classList.remove('active');
+      registerTab.style.background = 'var(--bg-secondary)';
+      registerTab.style.borderColor = 'var(--border)';
+      registerTab.style.color = 'var(--text-secondary)';
+    }
+    if (loginForm) {
+      loginForm.style.display = 'flex';
+    }
+    if (registerForm) {
+      registerForm.style.display = 'none';
+    }
   }
-  
-  if (registerTab) {
-    registerTab.addEventListener('click', () => {
-      console.log('[AUTH] Register tab clicked');
+
+  // Переключение на РЕГИСТРАЦИЮ
+  function showRegister() {
+    console.log('[AUTH] showRegister');
+    if (registerTab) {
       registerTab.classList.add('active');
-      if (loginTab) loginTab.classList.remove('active');
-      if (registerForm) registerForm.style.display = 'flex';
-      if (loginForm) loginForm.style.display = 'none';
+      registerTab.style.background = 'var(--accent)';
+      registerTab.style.borderColor = 'var(--accent)';
+      registerTab.style.color = 'white';
+    }
+    if (loginTab) {
+      loginTab.classList.remove('active');
+      loginTab.style.background = 'var(--bg-secondary)';
+      loginTab.style.borderColor = 'var(--border)';
+      loginTab.style.color = 'var(--text-secondary)';
+    }
+    if (registerForm) {
+      registerForm.style.display = 'flex';
+    }
+    if (loginForm) {
+      loginForm.style.display = 'none';
+    }
+  }
+
+  // Обработчики кликов
+  if (loginTab) {
+    loginTab.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      showLogin();
     });
   }
+
+  if (registerTab) {
+    registerTab.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      showRegister();
+    });
+  }
+
+  // Инициализация - показываем вход
+  showLogin();
 }
 
 function setupAuthForms() {
   console.log('[AUTH] setupAuthForms called');
-  
+
   // Форма входа
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
-    console.log('[AUTH] Login form found, adding submit listener');
-    loginForm.addEventListener('submit', async (e) => {
+    loginForm.addEventListener('submit', async function(e) {
       e.preventDefault();
-      console.log('[AUTH] Login form submitted');
+      console.log('[AUTH] Login submit');
       await handleLogin();
     });
-  } else {
-    console.error('[AUTH] Login form not found!');
   }
-  
+
   // Форма регистрации
   const registerForm = document.getElementById('register-form');
   if (registerForm) {
-    console.log('[AUTH] Register form found, adding submit listener');
-    registerForm.addEventListener('submit', async (e) => {
+    registerForm.addEventListener('submit', async function(e) {
       e.preventDefault();
-      console.log('[AUTH] Register form submitted');
+      console.log('[AUTH] Register submit');
       await handleRegister();
     });
-  } else {
-    console.error('[AUTH] Register form not found!');
   }
 }
 
 function setupGuestMode() {
   console.log('[AUTH] setupGuestMode called');
-  
+
   const guestBtn = document.getElementById('continue-guest');
   if (guestBtn) {
-    console.log('[AUTH] Guest button found, adding click listener');
-    guestBtn.addEventListener('click', () => {
-      console.log('[AUTH] Guest button clicked');
+    guestBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[AUTH] Guest mode activated');
       authState.isGuest = true;
-      // Не сохраняем в localStorage - гость только на эту сессию
+      localStorage.setItem('isGuest', 'true');
       hideAuthScreen();
     });
   } else {
@@ -163,26 +193,21 @@ function setupGuestMode() {
 
 function setupLogout() {
   console.log('[AUTH] setupLogout called');
-  
+
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
-    console.log('[AUTH] Logout button found, adding click listener');
     logoutBtn.addEventListener('click', handleLogout);
-  } else {
-    console.error('[AUTH] Logout button not found!');
   }
 }
 
 function showAuthScreen() {
   const authScreen = document.getElementById('auth-screen');
   const app = document.getElementById('app');
-  
-  console.log('[AUTH] showAuthScreen called');
-  
+
+  console.log('[AUTH] showAuthScreen');
+
   if (authScreen) {
     authScreen.style.display = 'flex';
-    authScreen.style.visibility = 'visible';
-    authScreen.style.opacity = '1';
   }
   if (app) {
     app.style.display = 'none';
@@ -192,17 +217,16 @@ function showAuthScreen() {
 function hideAuthScreen() {
   const authScreen = document.getElementById('auth-screen');
   const app = document.getElementById('app');
-  
-  console.log('[AUTH] hideAuthScreen called');
-  
+
+  console.log('[AUTH] hideAuthScreen');
+
   if (authScreen) {
     authScreen.style.display = 'none';
   }
   if (app) {
     app.style.display = 'flex';
-    app.style.opacity = '1';
   }
-  
+
   updateProfileUI();
 }
 
@@ -210,38 +234,19 @@ async function handleLogin() {
   const email = document.getElementById('login-email')?.value;
   const password = document.getElementById('login-password')?.value;
   const errorEl = document.getElementById('login-error');
-  
-  console.log('[AUTH] Login attempt:', email);
-  
+
+  console.log('[AUTH] Login:', email);
+
   if (!email || !password) {
     if (errorEl) errorEl.textContent = 'Введите email и пароль';
     return;
   }
-  
-  if (!supabase) {
-    // Локальная авторизация (демо)
-    authState.user = { email, id: 'local_' + Date.now() };
-    localStorage.setItem('user', JSON.stringify(authState.user));
-    hideAuthScreen();
-    return;
-  }
-  
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    if (error) throw error;
-    
-    authState.user = data.user;
-    localStorage.setItem('user', JSON.stringify(authState.user));
-    console.log('[AUTH] Login successful:', authState.user.email);
-    hideAuthScreen();
-  } catch (error) {
-    console.error('[AUTH] Login error:', error);
-    if (errorEl) errorEl.textContent = error.message;
-  }
+
+  // Локальная авторизация (демо)
+  authState.user = { email, id: 'local_' + Date.now() };
+  localStorage.setItem('user', JSON.stringify(authState.user));
+  console.log('[AUTH] Login successful (local)');
+  hideAuthScreen();
 }
 
 async function handleRegister() {
@@ -249,96 +254,39 @@ async function handleRegister() {
   const password = document.getElementById('register-password')?.value;
   const passwordConfirm = document.getElementById('register-password-confirm')?.value;
   const errorEl = document.getElementById('register-error');
-  
-  console.log('[AUTH] Register attempt:', email);
-  
+
+  console.log('[AUTH] Register:', email);
+
   if (!email || !password) {
     if (errorEl) errorEl.textContent = 'Введите email и пароль';
     return;
   }
-  
+
   if (password !== passwordConfirm) {
     if (errorEl) errorEl.textContent = 'Пароли не совпадают';
     return;
   }
-  
+
   if (password.length < 6) {
     if (errorEl) errorEl.textContent = 'Пароль должен быть не менее 6 символов';
     return;
   }
-  
-  if (!supabase) {
-    // Локальная регистрация (демо)
-    authState.user = { email, id: 'local_' + Date.now() };
-    localStorage.setItem('user', JSON.stringify(authState.user));
-    hideAuthScreen();
-    return;
-  }
-  
-  try {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password
-    });
-    
-    if (error) throw error;
-    
-    console.log('[AUTH] Registration successful, showing login form');
-    
-    // После регистрации показываем форму входа
-    if (errorEl) {
-      errorEl.style.color = '#22c55e';
-      errorEl.textContent = 'Регистрация успешна! Теперь войдите.';
-    }
-    
-    // Переключаем на форму входа через 2 секунды
-    setTimeout(() => {
-      const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
-      const registerForm = document.getElementById('register-form');
-      const loginForm = document.getElementById('login-form');
-      
-      if (loginTab) loginTab.click();
-      if (errorEl) {
-        errorEl.style.color = '#ef4444';
-        errorEl.textContent = '';
-      }
-      
-      // Очищаем поля регистрации
-      document.getElementById('register-email').value = '';
-      document.getElementById('register-password').value = '';
-      document.getElementById('register-password-confirm').value = '';
-    }, 2000);
-    
-  } catch (error) {
-    console.error('[AUTH] Register error:', error);
-    if (errorEl) {
-      errorEl.style.color = '#ef4444';
-      errorEl.textContent = error.message;
-    }
-  }
+
+  // Локальная регистрация (демо) - сразу входим
+  authState.user = { email, id: 'local_' + Date.now() };
+  localStorage.setItem('user', JSON.stringify(authState.user));
+  console.log('[AUTH] Registration successful (local)');
+  hideAuthScreen();
 }
 
 async function handleLogout() {
   if (!confirm('Вы уверены что хотите выйти из аккаунта?')) return;
-  
-  if (supabase) {
-    await supabase.auth.signOut();
-  }
-  
+
   authState.user = null;
   authState.isGuest = false;
   localStorage.removeItem('user');
   localStorage.removeItem('isGuest');
-  
-  // Очищаем данные профиля
-  const profileEmail = document.getElementById('profile-email');
-  const profileName = document.getElementById('profile-name-display');
-  const logoutBtn = document.getElementById('logout-btn');
-  
-  if (profileEmail) profileEmail.textContent = 'user@example.com';
-  if (profileName) profileName.textContent = 'Гость';
-  if (logoutBtn) logoutBtn.style.display = 'none';
-  
+
   showAuthScreen();
 }
 
@@ -346,11 +294,11 @@ function updateProfileUI() {
   const logoutBtn = document.getElementById('logout-btn');
   const profileEmail = document.getElementById('profile-email');
   const profileName = document.getElementById('profile-name-display');
-  
+
   if (authState.user) {
     if (logoutBtn) logoutBtn.style.display = 'flex';
-    if (profileEmail) profileEmail.textContent = authState.user.email || authState.user.user_metadata?.email;
-    if (profileName) profileName.textContent = authState.user.user_metadata?.full_name || 'Пользователь';
+    if (profileEmail) profileEmail.textContent = authState.user.email;
+    if (profileName) profileName.textContent = 'Пользователь';
   } else if (authState.isGuest) {
     if (logoutBtn) logoutBtn.style.display = 'flex';
     if (profileEmail) profileEmail.textContent = 'Гостевой режим';
@@ -362,14 +310,6 @@ function updateProfileUI() {
   }
 }
 
-function isLoggedIn() {
-  return authState.user !== null || authState.isGuest;
-}
-
-function getUser() {
-  return authState.user;
-}
-
-function isGuest() {
-  return authState.isGuest;
-}
+// Экспортируем функции
+window.initAuth = initAuth;
+window.authState = authState;
