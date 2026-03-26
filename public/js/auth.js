@@ -39,69 +39,105 @@ function initAuth() {
   const isGuest = localStorage.getItem('isGuest');
   if (isGuest === 'true') {
     authState.isGuest = true;
-    console.log('[AUTH] Guest mode');
+    console.log('[AUTH] Guest mode restored');
   }
   
-  // Даём время CSS загрузиться
-  setTimeout(() => {
-    // Показываем экран авторизации если нет пользователя
-    if (!authState.user && !authState.isGuest) {
-      console.log('[AUTH] Showing auth screen');
-      showAuthScreen();
-    } else {
-      console.log('[AUTH] Hiding auth screen, user logged in');
-      hideAuthScreen();
-    }
-  }, 50);
+  // Показываем экран авторизации если нет пользователя
+  if (!authState.user && !authState.isGuest) {
+    console.log('[AUTH] Showing auth screen');
+    showAuthScreen();
+  } else {
+    console.log('[AUTH] User already logged in, hiding auth screen');
+    hideAuthScreen();
+  }
   
   // Переключатель вход/регистрация
-  setTimeout(() => {
-    document.querySelectorAll('.auth-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
+  setupAuthTabs();
+  
+  // Формы
+  setupAuthForms();
+  
+  // Гостевой режим
+  setupGuestMode();
+  
+  // Кнопка выхода
+  setupLogout();
+}
 
-        const tabName = tab.dataset.tab;
-        if (tabName === 'login') {
-          document.getElementById('login-form').style.display = 'flex';
-          document.getElementById('register-form').style.display = 'none';
-        } else {
-          document.getElementById('login-form').style.display = 'none';
-          document.getElementById('register-form').style.display = 'flex';
-        }
-      });
+function setupAuthTabs() {
+  const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+  const registerTab = document.querySelector('.auth-tab[data-tab="register"]');
+  const loginForm = document.getElementById('login-form');
+  const registerForm = document.getElementById('register-form');
+  
+  if (loginTab) {
+    loginTab.addEventListener('click', () => {
+      loginTab.classList.add('active');
+      if (registerTab) registerTab.classList.remove('active');
+      if (loginForm) loginForm.style.display = 'flex';
+      if (registerForm) registerForm.style.display = 'none';
     });
+  }
+  
+  if (registerTab) {
+    registerTab.addEventListener('click', () => {
+      registerTab.classList.add('active');
+      if (loginTab) loginTab.classList.remove('active');
+      if (registerForm) registerForm.style.display = 'flex';
+      if (loginForm) loginForm.style.display = 'none';
+    });
+  }
+}
 
-    // Форма входа
-    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+function setupAuthForms() {
+  // Форма входа
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       await handleLogin();
     });
-
-    // Форма регистрации
-    document.getElementById('register-form')?.addEventListener('submit', async (e) => {
+  }
+  
+  // Форма регистрации
+  const registerForm = document.getElementById('register-form');
+  if (registerForm) {
+    registerForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       await handleRegister();
     });
+  }
+}
 
-    // Гостевой режим
-    document.getElementById('continue-guest')?.addEventListener('click', () => {
+function setupGuestMode() {
+  const guestBtn = document.getElementById('continue-guest');
+  if (guestBtn) {
+    guestBtn.addEventListener('click', () => {
+      console.log('[AUTH] Guest mode selected');
       authState.isGuest = true;
-      localStorage.setItem('isGuest', 'true');
+      // Не сохраняем в localStorage - гость только на эту сессию
       hideAuthScreen();
     });
+  }
+}
 
-    // Кнопка выхода
-    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
-  }, 200);
+function setupLogout() {
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', handleLogout);
+  }
 }
 
 function showAuthScreen() {
   const authScreen = document.getElementById('auth-screen');
   const app = document.getElementById('app');
   
+  console.log('[AUTH] showAuthScreen called');
+  
   if (authScreen) {
     authScreen.style.display = 'flex';
+    authScreen.style.visibility = 'visible';
+    authScreen.style.opacity = '1';
   }
   if (app) {
     app.style.display = 'none';
@@ -111,22 +147,31 @@ function showAuthScreen() {
 function hideAuthScreen() {
   const authScreen = document.getElementById('auth-screen');
   const app = document.getElementById('app');
-
+  
+  console.log('[AUTH] hideAuthScreen called');
+  
   if (authScreen) {
     authScreen.style.display = 'none';
   }
   if (app) {
-    app.style.display = 'flex'; // app использует flex
+    app.style.display = 'flex';
     app.style.opacity = '1';
   }
-
+  
   updateProfileUI();
 }
 
 async function handleLogin() {
-  const email = document.getElementById('login-email').value;
-  const password = document.getElementById('login-password').value;
+  const email = document.getElementById('login-email')?.value;
+  const password = document.getElementById('login-password')?.value;
   const errorEl = document.getElementById('login-error');
+  
+  console.log('[AUTH] Login attempt:', email);
+  
+  if (!email || !password) {
+    if (errorEl) errorEl.textContent = 'Введите email и пароль';
+    return;
+  }
   
   if (!supabase) {
     // Локальная авторизация (демо)
@@ -146,26 +191,34 @@ async function handleLogin() {
     
     authState.user = data.user;
     localStorage.setItem('user', JSON.stringify(authState.user));
+    console.log('[AUTH] Login successful:', authState.user.email);
     hideAuthScreen();
   } catch (error) {
     console.error('[AUTH] Login error:', error);
-    errorEl.textContent = error.message;
+    if (errorEl) errorEl.textContent = error.message;
   }
 }
 
 async function handleRegister() {
-  const email = document.getElementById('register-email').value;
-  const password = document.getElementById('register-password').value;
-  const passwordConfirm = document.getElementById('register-password-confirm').value;
+  const email = document.getElementById('register-email')?.value;
+  const password = document.getElementById('register-password')?.value;
+  const passwordConfirm = document.getElementById('register-password-confirm')?.value;
   const errorEl = document.getElementById('register-error');
   
+  console.log('[AUTH] Register attempt:', email);
+  
+  if (!email || !password) {
+    if (errorEl) errorEl.textContent = 'Введите email и пароль';
+    return;
+  }
+  
   if (password !== passwordConfirm) {
-    errorEl.textContent = 'Пароли не совпадают';
+    if (errorEl) errorEl.textContent = 'Пароли не совпадают';
     return;
   }
   
   if (password.length < 6) {
-    errorEl.textContent = 'Пароль должен быть не менее 6 символов';
+    if (errorEl) errorEl.textContent = 'Пароль должен быть не менее 6 символов';
     return;
   }
   
@@ -185,12 +238,38 @@ async function handleRegister() {
     
     if (error) throw error;
     
-    authState.user = data.user;
-    localStorage.setItem('user', JSON.stringify(authState.user));
-    hideAuthScreen();
+    console.log('[AUTH] Registration successful, showing login form');
+    
+    // После регистрации показываем форму входа
+    if (errorEl) {
+      errorEl.style.color = '#22c55e';
+      errorEl.textContent = 'Регистрация успешна! Теперь войдите.';
+    }
+    
+    // Переключаем на форму входа через 2 секунды
+    setTimeout(() => {
+      const loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+      const registerForm = document.getElementById('register-form');
+      const loginForm = document.getElementById('login-form');
+      
+      if (loginTab) loginTab.click();
+      if (errorEl) {
+        errorEl.style.color = '#ef4444';
+        errorEl.textContent = '';
+      }
+      
+      // Очищаем поля регистрации
+      document.getElementById('register-email').value = '';
+      document.getElementById('register-password').value = '';
+      document.getElementById('register-password-confirm').value = '';
+    }, 2000);
+    
   } catch (error) {
     console.error('[AUTH] Register error:', error);
-    errorEl.textContent = error.message;
+    if (errorEl) {
+      errorEl.style.color = '#ef4444';
+      errorEl.textContent = error.message;
+    }
   }
 }
 
@@ -207,9 +286,13 @@ async function handleLogout() {
   localStorage.removeItem('isGuest');
   
   // Очищаем данные профиля
-  document.getElementById('profile-name-display').textContent = 'Гость';
-  document.getElementById('profile-email').textContent = 'user@example.com';
-  document.getElementById('logout-btn').style.display = 'none';
+  const profileEmail = document.getElementById('profile-email');
+  const profileName = document.getElementById('profile-name-display');
+  const logoutBtn = document.getElementById('logout-btn');
+  
+  if (profileEmail) profileEmail.textContent = 'user@example.com';
+  if (profileName) profileName.textContent = 'Гость';
+  if (logoutBtn) logoutBtn.style.display = 'none';
   
   showAuthScreen();
 }
@@ -226,6 +309,10 @@ function updateProfileUI() {
   } else if (authState.isGuest) {
     if (logoutBtn) logoutBtn.style.display = 'flex';
     if (profileEmail) profileEmail.textContent = 'Гостевой режим';
+    if (profileName) profileName.textContent = 'Гость';
+  } else {
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (profileEmail) profileEmail.textContent = 'user@example.com';
     if (profileName) profileName.textContent = 'Гость';
   }
 }

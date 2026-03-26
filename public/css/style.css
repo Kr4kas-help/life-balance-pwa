@@ -2792,6 +2792,8 @@ body {
   justify-content: center;
   z-index: 10000;
   padding: 16px;
+  visibility: visible;
+  opacity: 1;
 }
 
 .auth-container {
@@ -2846,6 +2848,10 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all var(--transition-fast);
+}
+
+.auth-tab:hover {
+  background: var(--bg-elevated);
 }
 
 .auth-tab.active {
@@ -2912,6 +2918,7 @@ body {
   color: var(--danger);
   font-size: 12px;
   text-align: center;
+  min-height: 18px;
 }
 
 .auth-footer {
@@ -2945,6 +2952,17 @@ body {
 .profile-actions {
   display: flex;
   gap: 8px;
+}
+
+/* App скрыт когда показан auth screen */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.auth-screen[style*="display: none"] + #app {
+  display: flex !important;
 }
 
 /* Responsive */
