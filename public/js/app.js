@@ -1645,24 +1645,27 @@ async function loadSupplements() {
       return;
     }
 
-    if (supplements.length === 0) {
+    if (!supplements || supplements.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Нет добавок</td></tr>';
       return;
     }
 
-    tbody.innerHTML = supplements.map(s => `
-      <tr>
-        <td>${s.name}</td>
-        <td>${s.time}</td>
-        <td>${s.days.length > 0 ? s.days.join(', ') : 'Ежедневно'}</td>
-        <td>
-          <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
-        </td>
-        <td>
-          <button class="btn-delete-sm" onclick="deleteSupplement('${s.id}')">&times;</button>
-        </td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = supplements.map(s => {
+      if (!s) return '';
+      return `
+        <tr>
+          <td>${s.name || ''}</td>
+          <td>${s.time || ''}</td>
+          <td>${s.days && s.days.length > 0 ? s.days.join(', ') : 'Ежедневно'}</td>
+          <td>
+            <input type="checkbox" class="supplement-check" data-id="${s.id}" ${s.taken_today ? 'checked' : ''}>
+          </td>
+          <td>
+            <button class="btn-delete-sm" onclick="deleteSupplement('${s.id}')">&times;</button>
+          </td>
+        </tr>
+      `;
+    }).filter(Boolean).join('');
 
     tbody.querySelectorAll('.supplement-check').forEach(checkbox => {
       checkbox.addEventListener('change', async () => {
@@ -1672,6 +1675,11 @@ async function loadSupplements() {
     });
   } catch (error) {
     console.error('[APP] Error loading supplements:', error);
+    // Если хранилище не найдено - показываем пустое состояние
+    const tbody = document.getElementById('supplements-body');
+    if (tbody && error.name === 'NotFoundError') {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Хранилище не найдено. Обновите страницу.</td></tr>';
+    }
   }
 }
 

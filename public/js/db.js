@@ -1,6 +1,6 @@
 // db.js - Работа с локальной базой данных (IndexedDB) и синхронизация
 const DB_NAME = 'life-balance-db';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const STORE_NAMES = {
   USERS: 'users',
   DAILY_TASKS: 'daily_tasks',
