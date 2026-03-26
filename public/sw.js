@@ -1,5 +1,25 @@
 // Service Worker для офлайн-работы PWA
-const CACHE_NAME = 'life-balance-v9';
+const CACHE_NAME = 'life-balance-v10';
+
+// Принудительная очистка старого кэша при активации
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating Service Worker v10...');
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+      console.log('[SW] Claiming clients...');
+      return self.clients.claim();
+    })
+  );
+});
 const STATIC_ASSETS = [
   '/',
   '/index.html',

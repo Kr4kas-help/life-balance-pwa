@@ -1610,15 +1610,19 @@ async function addSupplement() {
   console.log('[APP] Supplement to save:', supplement);
 
   try {
-    // Используем db.add вместо db.saveSupplement
-    await db.add('supplements', supplement);
+    // Используем db.put с правильным именем хранилища
+    await db.put('supplements', supplement);
     console.log('[APP] Supplement saved successfully');
 
     if (nameInput) nameInput.value = '';
     if (timeInput) timeInput.value = '';
     if (daysInput) daysInput.value = '';
 
-    await loadSupplements();
+    // Небольшая задержка чтобы БД успела записаться
+    setTimeout(async () => {
+      await loadSupplements();
+    }, 100);
+    
     notifications.showToast('Добавка добавлена', 'success');
   } catch (error) {
     console.error('[APP] Error saving supplement:', error);
@@ -1630,6 +1634,7 @@ async function loadSupplements() {
   console.log('[APP] loadSupplements called');
   
   try {
+    // Используем db.getAll с правильным именем хранилища
     const supplements = await db.getAll('supplements') || [];
     console.log('[APP] Loaded supplements:', supplements);
     
