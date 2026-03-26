@@ -1,6 +1,18 @@
 // app.js - Основная логика приложения
 console.log('[APP] Loading app.js...');
 
+// Проверка авторизации
+function getUserId() {
+  if (typeof authState !== 'undefined' && authState.user) {
+    return authState.user.id;
+  }
+  return null;
+}
+
+function isLoggedIn() {
+  return typeof authState !== 'undefined' && (authState.user !== null || authState.isGuest);
+}
+
 // Словари для изучения - встроенные + из URL
 let customWords = []; // Слова из URL
 
@@ -598,6 +610,7 @@ function updateStreak() {
 async function saveTasks() {
   console.log('[APP] saveTasks called');
   const today = new Date().toISOString().split('T')[0];
+  const userId = getUserId();
   
   for (let i = 1; i <= 3; i++) {
     const input = document.getElementById(`task-input-${i}`);
@@ -605,12 +618,24 @@ async function saveTasks() {
     if (input && input.value.trim()) {
       const taskData = {
         id: `task_${today}_${i}`,
+        user_id: userId,
         text: input.value.trim(),
         completed: checkbox?.checked || false,
         date: today
       };
-      console.log('[APP] Saving task:', taskData);
+      
+      // Сохраняем локально
       await db.put('daily_tasks', taskData);
+      
+      // Синхронизируем с Supabase если вошли
+      if (userId && supabase) {
+        try {
+          await supabase.from('daily_tasks').upsert(taskData);
+          console.log('[APP] Task synced to Supabase');
+        } catch (e) {
+          console.error('[APP] Supabase sync error:', e);
+        }
+      }
     }
   }
   
@@ -1614,8 +1639,10 @@ async function addSupplement() {
     return;
   }
 
+  const userId = getUserId();
   const supplement = {
     id: `supplement_${Date.now()}`,
+    user_id: userId,
     name,
     time,
     days: days ? days.split(',').map(d => parseInt(d.trim())).filter(d => d >= 1 && d <= 365) : [],
@@ -1626,9 +1653,20 @@ async function addSupplement() {
   console.log('[APP] Supplement to save:', supplement);
 
   try {
-    // Используем db.put с правильным именем хранилища
+    // Сохраняем локально
     await db.put('supplements', supplement);
-    console.log('[APP] Supplement saved successfully');
+    console.log('[APP] Supplement saved to IndexedDB');
+    
+    // Синхронизируем с Supabase если вошли
+    if (userId && supabase) {
+      try {
+        const { error } = await supabase.from('supplements').insert(supplement);
+        if (error) throw error;
+        console.log('[APP] Supplement synced to Supabase');
+      } catch (e) {
+        console.error('[APP] Supabase sync error:', e);
+      }
+    }
 
     if (nameInput) nameInput.value = '';
     if (timeInput) timeInput.value = '';

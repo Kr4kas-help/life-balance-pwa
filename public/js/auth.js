@@ -4,14 +4,8 @@ console.log('[AUTH] Loading auth.js...');
 // ============================================
 // НАСТРОЙКА SUPABASE
 // ============================================
-// 1. Зарегистрируйтесь на https://supabase.com
-// 2. Создайте новый проект
-// 3. Скопируйте URL и Anon Key из Settings → API
-// 4. Вставьте их ниже:
-
-const SUPABASE_URL = ''; // Например: https://xxxxxxxxxxxxx.supabase.co
-const SUPABASE_ANON_KEY = ''; // Ваш anon key
-
+const SUPABASE_URL = 'https://xhzscskvrxefnoardxxa.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_w2dp-1spX0B65wbdlt6jtQ_OAZPsARd';
 // ============================================
 
 let supabase = null;
@@ -19,10 +13,10 @@ let supabase = null;
 // Проверяем наличие Supabase
 if (typeof createClient !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY) {
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  console.log('[AUTH] Supabase initialized');
+  console.log('[AUTH] Supabase initialized successfully!');
+  console.log('[AUTH] Project:', SUPABASE_URL);
 } else {
   console.warn('[AUTH] Supabase not configured, using local auth only');
-  console.warn('[AUTH] To enable cloud sync, set up Supabase keys in auth.js');
 }
 
 // Состояние авторизации
