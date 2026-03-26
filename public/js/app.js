@@ -214,9 +214,12 @@ const appState = {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[APP] DOMContentLoaded');
   
-  // Инициализация авторизации
+  // Сначала инициализируем авторизацию
   if (typeof initAuth !== 'undefined') {
+    console.log('[APP] Calling initAuth...');
     initAuth();
+  } else {
+    console.warn('[APP] initAuth not found!');
   }
 
   // Ждём инициализации БД

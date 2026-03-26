@@ -33,7 +33,7 @@ function initAuth() {
   const savedUser = localStorage.getItem('user');
   if (savedUser) {
     authState.user = JSON.parse(savedUser);
-    console.log('[AUTH] User restored from localStorage:', authState.user);
+    console.log('[AUTH] User restored from localStorage:', authState.user?.email);
   }
   
   const isGuest = localStorage.getItem('isGuest');
@@ -44,49 +44,53 @@ function initAuth() {
   
   // Показываем экран авторизации если нет пользователя
   if (!authState.user && !authState.isGuest) {
+    console.log('[AUTH] Showing auth screen');
     showAuthScreen();
   } else {
+    console.log('[AUTH] Hiding auth screen, user logged in');
     hideAuthScreen();
   }
   
   // Переключатель вход/регистрация
-  document.querySelectorAll('.auth-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      
-      const tabName = tab.dataset.tab;
-      if (tabName === 'login') {
-        document.getElementById('login-form').style.display = 'flex';
-        document.getElementById('register-form').style.display = 'none';
-      } else {
-        document.getElementById('login-form').style.display = 'none';
-        document.getElementById('register-form').style.display = 'flex';
-      }
+  setTimeout(() => {
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const tabName = tab.dataset.tab;
+        if (tabName === 'login') {
+          document.getElementById('login-form').style.display = 'flex';
+          document.getElementById('register-form').style.display = 'none';
+        } else {
+          document.getElementById('login-form').style.display = 'none';
+          document.getElementById('register-form').style.display = 'flex';
+        }
+      });
     });
-  });
-  
-  // Форма входа
-  document.getElementById('login-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await handleLogin();
-  });
-  
-  // Форма регистрации
-  document.getElementById('register-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await handleRegister();
-  });
-  
-  // Гостевой режим
-  document.getElementById('continue-guest')?.addEventListener('click', () => {
-    authState.isGuest = true;
-    localStorage.setItem('isGuest', 'true');
-    hideAuthScreen();
-  });
-  
-  // Кнопка выхода
-  document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+
+    // Форма входа
+    document.getElementById('login-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await handleLogin();
+    });
+
+    // Форма регистрации
+    document.getElementById('register-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await handleRegister();
+    });
+
+    // Гостевой режим
+    document.getElementById('continue-guest')?.addEventListener('click', () => {
+      authState.isGuest = true;
+      localStorage.setItem('isGuest', 'true');
+      hideAuthScreen();
+    });
+
+    // Кнопка выхода
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
+  }, 100);
 }
 
 function showAuthScreen() {
@@ -104,14 +108,15 @@ function showAuthScreen() {
 function hideAuthScreen() {
   const authScreen = document.getElementById('auth-screen');
   const app = document.getElementById('app');
-  
+
   if (authScreen) {
     authScreen.style.display = 'none';
   }
   if (app) {
-    app.style.display = 'block';
+    app.style.display = 'flex'; // app использует flex
+    app.style.opacity = '1';
   }
-  
+
   updateProfileUI();
 }
 
