@@ -1,10 +1,11 @@
-# SQL для настройки Supabase
+-- SQL для настройки Supabase
+-- Выполните этот SQL в SQL Editor на https://app.supabase.com
+-- Ваш проект: https://supabase.com/dashboard/project/xhzscskvrxefnoardxxa
 
-Выполните этот SQL в **SQL Editor** на https://app.supabase.com
+-- =====================================================
+-- 1. СОЗДАЙТЕ ТАБЛИЦЫ
+-- =====================================================
 
-## 1. Создайте таблицы
-
-```sql
 -- Таблица для задач
 CREATE TABLE IF NOT EXISTS daily_tasks (
   id TEXT PRIMARY KEY,
@@ -109,11 +110,11 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   avatar TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-```
 
-## 2. Создайте индексы
+-- =====================================================
+-- 2. СОЗДАЙТЕ ИНДЕКСЫ
+-- =====================================================
 
-```sql
 CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON daily_tasks(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_words_user_date ON words_learned(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_books_user ON books(user_id);
@@ -123,11 +124,11 @@ CREATE INDEX IF NOT EXISTS idx_principles_user ON principles(user_id);
 CREATE INDEX IF NOT EXISTS idx_contacts_user ON contacts(user_id);
 CREATE INDEX IF NOT EXISTS idx_focus_user_date ON focus_sessions(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_water_user_date ON water_log(user_id, date);
-```
 
-## 3. Включите RLS (Row Level Security)
+-- =====================================================
+-- 3. ВКЛЮЧИТЕ RLS (Row Level Security)
+-- =====================================================
 
-```sql
 ALTER TABLE daily_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE words_learned ENABLE ROW LEVEL SECURITY;
 ALTER TABLE books ENABLE ROW LEVEL SECURITY;
@@ -138,11 +139,11 @@ ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE focus_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE water_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
-```
 
-## 4. Создайте политики безопасности
+-- =====================================================
+-- 4. СОЗДАЙТЕ ПОЛИТИКИ БЕЗОПАСНОСТИ
+-- =====================================================
 
-```sql
 -- Пользователи могут видеть и редактировать только свои данные
 CREATE POLICY "Users can view own tasks" ON daily_tasks
   FOR ALL USING (auth.uid()::text = user_id::text);
@@ -173,11 +174,11 @@ CREATE POLICY "Users can view own water" ON water_log
 
 CREATE POLICY "Users can view own profile" ON user_profiles
   FOR ALL USING (auth.uid() = id);
-```
 
-## 5. Создайте триггер для автоматического создания профиля
+-- =====================================================
+-- 5. ТРИГГЕР ДЛЯ АВТОМАТИЧЕСКОГО СОЗДАНИЯ ПРОФИЛЯ
+-- =====================================================
 
-```sql
 -- Функция для создания профиля при регистрации
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -192,14 +193,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-```
 
-## 6. Проверка
-
-После выполнения SQL проверьте:
-1. Все таблицы созданы в **Table Editor**
-2. Индексы добавлены
-3. RLS включен для всех таблиц
-4. Политики безопасности работают
-
-Теперь приложение будет синхронизировать данные с Supabase!
+-- =====================================================
+-- ГОТОВО!
+-- =====================================================

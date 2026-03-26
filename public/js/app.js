@@ -13,6 +13,33 @@ function isLoggedIn() {
   return typeof authState !== 'undefined' && (authState.user !== null || authState.isGuest);
 }
 
+// Синхронизация с Supabase
+async function syncWithSupabase(table, data, operation = 'upsert') {
+  if (!supabase) {
+    console.log('[APP] Supabase not available');
+    return;
+  }
+  
+  const userId = getUserId();
+  if (!userId) {
+    console.log('[APP] No user logged in');
+    return;
+  }
+  
+  try {
+    if (operation === 'insert') {
+      const { error } = await supabase.from(table).insert(data);
+      if (error) throw error;
+    } else if (operation === 'upsert') {
+      const { error } = await supabase.from(table).upsert(data);
+      if (error) throw error;
+    }
+    console.log('[APP] Synced to Supabase:', table);
+  } catch (e) {
+    console.error('[APP] Supabase sync error:', e);
+  }
+}
+
 // Словари для изучения - встроенные + из URL
 let customWords = []; // Слова из URL
 
@@ -629,12 +656,7 @@ async function saveTasks() {
       
       // Синхронизируем с Supabase если вошли
       if (userId && supabase) {
-        try {
-          await supabase.from('daily_tasks').upsert(taskData);
-          console.log('[APP] Task synced to Supabase');
-        } catch (e) {
-          console.error('[APP] Supabase sync error:', e);
-        }
+        await syncWithSupabase('daily_tasks', taskData);
       }
     }
   }
@@ -1233,19 +1255,26 @@ async function learnWords() {
       
       if (e.target.checked && !word.learned) {
         word.learned = true;
-        
+
         // Сохраняем слово в базу
+        const userId = getUserId();
         const wordData = {
           id: `word_${Date.now()}_${Math.random()}`,
+          user_id: userId,
           word: word.word,
           translation: word.translation,
           theme: 'daily',
           date: today,
           learned: true
         };
-        
+
         await db.add('words_learned', wordData);
         
+        // Синхронизируем с Supabase
+        if (userId && supabase) {
+          await syncWithSupabase('words_learned', wordData, 'insert');
+        }
+
         // Обновляем прогресс
         const newLearnedCount = learnedCount + container.querySelectorAll('.word-check:checked').length;
         updateWordsProgress(newLearnedCount, 5);
@@ -1659,13 +1688,7 @@ async function addSupplement() {
     
     // Синхронизируем с Supabase если вошли
     if (userId && supabase) {
-      try {
-        const { error } = await supabase.from('supplements').insert(supplement);
-        if (error) throw error;
-        console.log('[APP] Supplement synced to Supabase');
-      } catch (e) {
-        console.error('[APP] Supabase sync error:', e);
-      }
+      await syncWithSupabase('supplements', supplement, 'insert');
     }
 
     if (nameInput) nameInput.value = '';
@@ -2014,20 +2037,33 @@ async function saveGratitude() {
     return;
   }
 
+  const userId = getUserId();
   const gratitude = {
     id: `gratitude_${Date.now()}`,
+    user_id: userId,
     text,
     date: new Date().toISOString().split('T')[0],
     created_at: new Date().toISOString()
   };
-  
-  console.log('[APP] Saving gratitude:', gratitude);
-  await db.add('gratitude', gratitude);
-  input.value = '';
-  await loadGratitudes();
-  await loadGratitudeCalendar();
-  await checkAchievements();
-  notifications.showToast('Благодарность сохранена', 'success');
+
+  try {
+    // Сохраняем локально
+    await db.add('gratitude', gratitude);
+    
+    // Синхронизируем с Supabase
+    if (userId && supabase) {
+      await syncWithSupabase('gratitude', gratitude, 'insert');
+    }
+    
+    input.value = '';
+    await loadGratitudes();
+    await loadGratitudeCalendar();
+    await checkAchievements();
+    notifications.showToast('Благодарность сохранена', 'success');
+  } catch (error) {
+    console.error('[APP] Error saving gratitude:', error);
+    notifications.showToast('Ошибка сохранения', 'error');
+  }
 }
 
 async function loadGratitudes() {
