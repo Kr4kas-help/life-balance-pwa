@@ -31,13 +31,13 @@
         <h1 class="auth-title">На 1% от других</h1>
         <p class="auth-subtitle">Приложение для продуктивности</p>
       </div>
-      
+
       <!-- Переключатель вход/регистрация -->
       <div class="auth-tabs">
         <button class="auth-tab active" data-tab="login">Вход</button>
         <button class="auth-tab" data-tab="register">Регистрация</button>
       </div>
-      
+
       <!-- Форма входа -->
       <form id="login-form" class="auth-form">
         <div class="auth-field">
@@ -51,7 +51,7 @@
         <button type="submit" class="auth-btn">Войти</button>
         <p class="auth-error" id="login-error"></p>
       </form>
-      
+
       <!-- Форма регистрации -->
       <form id="register-form" class="auth-form">
         <div class="auth-field">
@@ -69,9 +69,14 @@
         <button type="submit" class="auth-btn">Зарегистрироваться</button>
         <p class="auth-error" id="register-error"></p>
       </form>
+
+      <p class="auth-divider-text">или</p>
       
-      <p class="auth-footer">Продолжить без аккаунта →</p>
-      <button class="auth-guest-btn" id="continue-guest">Гостевой режим</button>
+      <button class="auth-guest-btn" id="continue-guest">
+        <span>🚀</span> Продолжить без аккаунта
+      </button>
+      
+      <p class="auth-guest-warning">⚠️ В гостевом режиме данные не синхронизируются и могут быть потеряны при выходе</p>
     </div>
   </div>
   <!-- Основной контейнер приложения -->

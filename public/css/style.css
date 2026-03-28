@@ -2958,6 +2958,26 @@ body {
   transform: scale(0.98);
 }
 
+/* Divider Text */
+.auth-divider-text {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 16px 0;
+}
+
+/* Guest Warning */
+.auth-guest-warning {
+  text-align: center;
+  color: var(--warning);
+  font-size: 11px;
+  margin-top: 12px;
+  padding: 8px;
+  background: rgba(255, 193, 7, 0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
 .profile-actions {
   display: flex;
   gap: 8px;

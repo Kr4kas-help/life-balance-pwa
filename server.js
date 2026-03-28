@@ -16,7 +16,6 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 // Простое хранилище в памяти для демо (если нет Supabase)
 const inMemoryDB = {
-  users: [],
   daily_tasks: [],
   words_learned: [],
   gratitude: [],

@@ -441,3 +441,76 @@ window.addEventListener('online', () => {
 window.addEventListener('offline', () => {
   db.isOnline = false;
 });
+
+// ============================================
+// ФУНКЦИИ ДЛЯ ГОСТЕВОГО РЕЖИМА
+// ============================================
+
+// Проверка гостевого режима
+function isGuestMode() {
+  return typeof authState !== 'undefined' && authState.isGuest;
+}
+
+// Получение идентификатора пользователя для привязки данных
+function getUserId() {
+  if (typeof authState !== 'undefined' && authState.user) {
+    // Telegram пользователь
+    if (authState.authMethod === 'telegram') {
+      return {
+        id: authState.user.id,
+        telegram_id: authState.user.telegram_id
+      };
+    }
+    // Email пользователь
+    return {
+      id: authState.user.id,
+      telegram_id: null
+    };
+  }
+  // Гостевой режим - генерируем временный ID
+  return {
+    id: 'guest_' + (localStorage.getItem('guest_id') || Date.now()),
+    telegram_id: null
+  };
+}
+
+// Очистка гостевых данных при выходе
+async function clearGuestData() {
+  if (!isGuestMode()) return;
+  
+  console.log('[DB] Clearing guest data...');
+  
+  const stores = [
+    STORE_NAMES.DAILY_TASKS,
+    STORE_NAMES.WORDS,
+    STORE_NAMES.GRATITUDE,
+    STORE_NAMES.CONTACTS,
+    STORE_NAMES.ACHIEVEMENTS,
+    STORE_NAMES.WATER_LOG,
+    STORE_NAMES.FOCUS_SESSIONS,
+    STORE_NAMES.BOOKS,
+    STORE_NAMES.WALKS,
+    STORE_NAMES.SUPPLEMENTS,
+    STORE_NAMES.PRINCIPLES
+  ];
+  
+  await db.ensureReady();
+  
+  for (const storeName of stores) {
+    if (db.db.objectStoreNames.contains(storeName)) {
+      const tx = db.db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      await store.clear();
+    }
+  }
+  
+  // Очищаем guest_id
+  localStorage.removeItem('guest_id');
+  
+  console.log('[DB] Guest data cleared');
+}
+
+// Экспортируем функции
+window.isGuestMode = isGuestMode;
+window.getUserId = getUserId;
+window.clearGuestData = clearGuestData;

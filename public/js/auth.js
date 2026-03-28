@@ -280,7 +280,14 @@ async function handleRegister() {
 }
 
 async function handleLogout() {
-  if (!confirm('Вы уверены что хотите выйти из аккаунта?')) return;
+  // Предупреждение для гостевого режима
+  if (authState.isGuest) {
+    const confirmed = confirm('ВНИМАНИЕ: Все данные гостевого режима будут потеряны при выходе. Вы уверены?');
+    if (!confirmed) return;
+  } else {
+    const confirmed = confirm('Вы уверены что хотите выйти из аккаунта?');
+    if (!confirmed) return;
+  }
 
   authState.user = null;
   authState.isGuest = false;
@@ -298,7 +305,7 @@ function updateProfileUI() {
   if (authState.user) {
     if (logoutBtn) logoutBtn.style.display = 'flex';
     if (profileEmail) profileEmail.textContent = authState.user.email;
-    if (profileName) profileName.textContent = 'Пользователь';
+    if (profileName) profileName.textContent = authState.user.full_name || 'Пользователь';
   } else if (authState.isGuest) {
     if (logoutBtn) logoutBtn.style.display = 'flex';
     if (profileEmail) profileEmail.textContent = 'Гостевой режим';
